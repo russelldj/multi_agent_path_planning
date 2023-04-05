@@ -6,8 +6,6 @@ import yaml
 
 import logging
 
-np.random.seed(0)
-
 
 class Location:
     def __init__(self, loc):
