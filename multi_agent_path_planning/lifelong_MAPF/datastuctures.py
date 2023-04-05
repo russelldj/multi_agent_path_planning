@@ -345,7 +345,7 @@ class AgentSet:
     def any_agent_needs_new_plan(self):
         return np.any([a.needs_new_plan() for a in self.agents])
 
-    def report_metrics(self):
+    def report_metrics(self, show_violin=False):
         all_metrics = [a.get_metrics() for a in self.agents]
         # Flatten so each so it's a dict of metric names: list of all values
         all_metrics = {k: [m[k] for m in all_metrics] for k in all_metrics[0]}
@@ -372,7 +372,10 @@ class AgentSet:
         f, axs = plt.subplots(1, len(all_metrics.keys()))
         plt.suptitle("Aggregate metric violin plots")
         for i, (k, metrics) in enumerate(all_metrics.items()):
-            axs[i].violinplot(metrics)
+            if show_violin:
+                axs[i].violinplot(metrics)
+            else:
+                axs[i].boxplot(metrics)
             axs[i].set_title(k)
         plt.legend()
         plt.show()
