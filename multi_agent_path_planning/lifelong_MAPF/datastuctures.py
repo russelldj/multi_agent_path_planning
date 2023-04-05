@@ -346,17 +346,17 @@ class AgentSet:
         return np.any([a.needs_new_plan() for a in self.agents])
 
     def report_metrics(self):
-        metrics = [a.get_metrics() for a in self.agents]
+        all_metrics = [a.get_metrics() for a in self.agents]
         # Flatten so each so it's a dict of metric names: list of all values
-        metrics = {k: [m[k] for m in metrics] for k in metrics[0]}
-        n_agents = len(metrics[list(metrics.keys())[0]])
+        all_metrics = {k: [m[k] for m in all_metrics] for k in all_metrics[0]}
+        n_agents = len(all_metrics[list(all_metrics.keys())[0]])
         x = np.arange(n_agents)  # the label locations
         width = 0.25  # the width of the bars
         multiplier = 0
 
         fig, ax = plt.subplots(layout="constrained")
 
-        for attribute, measurement in metrics.items():
+        for attribute, measurement in all_metrics.items():
             offset = width * multiplier
             rects = ax.bar(x + offset, measurement, width, label=attribute)
             ax.bar_label(rects, padding=3)
@@ -366,6 +366,15 @@ class AgentSet:
         ax.set_title("Metrics by agent")
         ax.set_xticks(x + width, x)
         ax.legend()
+        plt.show()
+
+        # Show the aggregate metrics
+        f, axs = plt.subplots(1, len(all_metrics.keys()))
+        plt.suptitle("Aggregate metric violin plots")
+        for i, (k, metrics) in enumerate(all_metrics.items()):
+            axs[i].violinplot(metrics)
+            axs[i].set_title(k)
+        plt.legend()
         plt.show()
 
 
