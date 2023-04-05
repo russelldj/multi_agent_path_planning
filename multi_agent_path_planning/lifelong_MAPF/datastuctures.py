@@ -173,6 +173,16 @@ class Path:
             logging.error("Popped from empty Path")
             exit()
 
+    def get_len(self):
+        if len(self.pathnodes) < 2:
+            return 0
+        return np.sum(
+            [
+                self.pathnodes[i].get_loc() != self.pathnodes[i + 1].get_loc()
+                for i in range(len(self.pathnodes) - 1)
+            ]
+        )
+
 
 class Agent:
     def __init__(
@@ -215,6 +225,13 @@ class Agent:
 
     def get_executed_path(self):
         return self.executed_path
+
+    def get_metrics(self):
+        return {
+            "pathlength": self.executed_path.get_len(),
+            "n_completed_tasks": self.n_completed_task,
+            "idle_timesteps": self.idle_timesteps,
+        }
 
     def get_as_dict(self):
         # {'start': [0, 0], 'goal': [2, 0], 'name': 'agent0'}
@@ -329,6 +346,29 @@ class AgentSet:
 
     def any_agent_needs_new_plan(self):
         return np.any([a.needs_new_plan() for a in self.agents])
+
+    def report_metrics(self):
+        metrics = [a.get_metrics() for a in self.agents]
+        # Flatten so each so it's a dict of metric names: list of all values
+        metrics = {k: [m[k] for m in metrics] for k in metrics[0]}
+        n_agents = len(metrics[list(metrics.keys())[0]])
+        x = np.arange(n_agents)  # the label locations
+        width = 0.25  # the width of the bars
+        multiplier = 0
+
+        fig, ax = plt.subplots(layout="constrained")
+
+        for attribute, measurement in metrics.items():
+            offset = width * multiplier
+            rects = ax.bar(x + offset, measurement, width, label=attribute)
+            ax.bar_label(rects, padding=3)
+            multiplier += 1
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax.set_title("Metrics by agent")
+        ax.set_xticks(x + width, x)
+        ax.legend()
+        plt.show()
 
 
 class Map:

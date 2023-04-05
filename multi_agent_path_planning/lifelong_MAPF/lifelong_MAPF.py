@@ -141,6 +141,8 @@ def lifelong_MAPF_experiment(
         open_task_list.append(task_dict)
     output["open_tasks"] = open_task_list
 
+    agents.report_metrics()
+
     # Combine visualization data
     output.update(agents.get_executed_paths())
     return output
