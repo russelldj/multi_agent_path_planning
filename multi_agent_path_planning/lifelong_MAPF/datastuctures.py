@@ -319,6 +319,9 @@ class AgentSet:
     def get_agent_dict(self):
         return [agent.get_as_dict() for agent in self.agents]
 
+    def all_at_goals(self):
+        return np.all([a.goal is None for a in self.agents])
+
 
 class Map:
     def __init__(self, map, vis=False):
