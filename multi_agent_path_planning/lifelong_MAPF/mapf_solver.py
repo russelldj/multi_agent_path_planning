@@ -148,6 +148,10 @@ class CBSSolver:
             planned_paths: The already planned paths
             timestep: The simulation timestep
         """
+        # No new plans need to be added
+        if not agents.any_agent_needs_new_plan():
+            return agents
+
         # Get the dimensions, agents, and obstacles in the expected format
         dimension = map_instance.get_dim()
         agent_list = agents.get_agent_dict()

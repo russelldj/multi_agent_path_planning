@@ -241,6 +241,11 @@ class Agent:
 
         self.planned_path = temp_path
 
+    def needs_new_plan(self):
+        return self.goal is not None and (
+            self.planned_path is None or len(self.planned_path) == 0
+        )
+
     def soft_simulation_timestep_update(self):
         # if the agent has no plan is taskless
         logging.info(f"Dynamics for agent {self.ID}")
@@ -321,6 +326,9 @@ class AgentSet:
 
     def all_at_goals(self):
         return np.all([a.goal is None for a in self.agents])
+
+    def any_agent_needs_new_plan(self):
+        return np.any([a.needs_new_plan() for a in self.agents])
 
 
 class Map:
