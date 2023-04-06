@@ -51,6 +51,11 @@ class Location:
     def j(self):
         return self.ij_loc[1]
 
+    def manhatan_dist(self, other):
+        diff = np.array(self.as_ij()) - np.array(other.as_ij())
+        dist = np.sum(np.abs(diff))
+        return dist
+
 
 class Task:
     def __init__(self, start, goal, timestep):
@@ -93,6 +98,9 @@ class TaskSet:
             int: the number of tasks
         """
         return len(self.task_dict)
+
+    def task_list(self):
+        return list(self.task_dict.values())
 
     def add_tasks(self, task_iterable: typing.Iterable[Task]):
         """Add new tasks to the set
@@ -365,7 +373,6 @@ class AgentSet:
         # Add some text for labels, title and custom x-axis tick labels, etc.
         ax.set_title("Metrics by agent")
         ax.set_xticks(x + width, x)
-        ax.legend()
         plt.show()
 
         # Show the aggregate metrics

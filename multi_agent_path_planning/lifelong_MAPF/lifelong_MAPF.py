@@ -15,6 +15,7 @@ from multi_agent_path_planning.lifelong_MAPF.mapf_solver import (
 from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
     BaseTaskAllocator,
     RandomTaskAllocator,
+    LinearSumTaskAllocator,
 )
 from multi_agent_path_planning.lifelong_MAPF.task_factory import (
     BaseTaskFactory,
@@ -52,7 +53,7 @@ def main():
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
         task_factory=RandomTaskFactory(world_map, max_timestep=50, per_task_prob=0.25),
-        task_allocator=RandomTaskAllocator(),
+        task_allocator=LinearSumTaskAllocator(),
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),
         dynamics_simulator=BaseDynamicsSimulator(),
