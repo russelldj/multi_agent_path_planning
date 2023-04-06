@@ -89,7 +89,7 @@ class TaskSet:
             task_iterable (typing.Iterable, optional): The individual tasks. Defaults to ().
         """
         self.task_dict = {i: task_iterable[i] for i in range(len(task_iterable))}
-        self.next_key = len(task_iterable) + 1
+        self.next_key = len(task_iterable)
 
     def __len__(self) -> int:
         """The number of tasks
@@ -127,6 +127,13 @@ class TaskSet:
         chosen_keys = np.random.choice(keys, size=n_tasks, replace=False)
         tasks = [self.task_dict.pop(k) for k in chosen_keys]
         return tasks
+
+    def pop_task(self, task: Task):
+        try:
+            self.task_dict.pop(task.task_id)
+        except KeyError:
+            print(self.task_dict)
+            breakpoint()
 
 
 class PathNode:

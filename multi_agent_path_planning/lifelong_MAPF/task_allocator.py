@@ -2,6 +2,7 @@ import logging
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from multi_agent_path_planning.lifelong_MAPF.datastuctures import AgentSet, TaskSet
+import matplotlib.pyplot as plt
 
 
 class BaseTaskAllocator:
@@ -54,7 +55,7 @@ class RandomTaskAllocator(BaseTaskAllocator):
 
 
 class LinearSumTaskAllocator(BaseTaskAllocator):
-    def allocate_tasks(self, tasks: TaskSet, agents: AgentSet) -> AgentSet:
+    def allocate_tasks(self, tasks: TaskSet, agents: AgentSet, vis=False) -> AgentSet:
         # Parse which agents are not tasked yet
         untasked_agents = agents.get_unallocated_agents()
         task_list = tasks.task_list()
@@ -69,11 +70,29 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
         if distance_matrix.size > 0:
             task_inds, agent_inds = linear_sum_assignment(distance_matrix)
             assigned_tasks = []
-            assigned_agents = [agents.tolist()[agent_ind] for agent_ind in agent_inds]
+            assigned_agents = [
+                untasked_agents.tolist()[agent_ind] for agent_ind in agent_inds
+            ]
             for task_ind in task_inds:
                 task = task_list[task_ind]
+                tasks.pop_task(task)
                 assigned_tasks.append(task)
+            if vis:
+                plt.imshow(distance_matrix)
+                plt.colorbar()
+                plt.xlabel("Agent")
+                plt.ylabel("Task")
+                plt.title(f"task_inds: {task_inds}, agent_inds: {agent_inds}")
+                plt.pause(0.5)
+                plt.close()
 
             self.set_tasks(agents=assigned_agents, tasks=assigned_tasks)
 
         return agents
+
+
+TASK_ALLOCATOR_CLASS_DICT = {
+    "random": RandomTaskAllocator,
+    "linear_sum": LinearSumTaskAllocator,
+}
+
