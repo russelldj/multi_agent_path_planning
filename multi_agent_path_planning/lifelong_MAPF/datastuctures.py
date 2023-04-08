@@ -7,6 +7,8 @@ import yaml
 import logging
 
 np.random.seed(0)
+
+
 class Location:
     def __init__(self, loc):
         """Reduce ambiguity about i,j vs. x,y convention
@@ -66,7 +68,12 @@ class Task:
         self.task_id = task_id
 
     def get_dict(self):
-        return {'task_id': int(self.task_id), 'start': {'x': int(self.start.x()), 'y': int(self.start.y())}, 'goal': {'x': int(self.goal.x()), 'y': int(self.goal.y())}, 't': int(self.timestep)}
+        return {
+            "task_id": int(self.task_id),
+            "start": {"x": int(self.start.x()), "y": int(self.start.y())},
+            "goal": {"x": int(self.goal.x()), "y": int(self.goal.y())},
+            "t": int(self.timestep),
+        }
 
 
 class TaskSet:
@@ -234,6 +241,11 @@ class Agent:
 
         self.planned_path = temp_path
 
+    def needs_new_plan(self):
+        return self.goal is not None and (
+            self.planned_path is None or len(self.planned_path) == 0
+        )
+
     def soft_simulation_timestep_update(self):
         # if the agent has no plan is taskless
         logging.info(f"Dynamics for agent {self.ID}")
@@ -253,7 +265,8 @@ class Agent:
             # if path is exausted (goal reached)
             if len(self.planned_path.pathnodes) == 0:
                 # if we have hit the "start" of a "task"
-                if self.loc == self.task.start:
+                # TODO make sure this first check is right
+                if self.task is not None and self.loc == self.task.start:
                     self.goal = self.task.goal
                     self.planned_path = None
                 else:
@@ -311,6 +324,12 @@ class AgentSet:
     def get_agent_dict(self):
         return [agent.get_as_dict() for agent in self.agents]
 
+    def all_at_goals(self):
+        return np.all([a.goal is None for a in self.agents])
+
+    def any_agent_needs_new_plan(self):
+        return np.any([a.needs_new_plan() for a in self.agents])
+
 
 class Map:
     def __init__(self, map, vis=False):
@@ -322,7 +341,8 @@ class Map:
         self.map_np = np.ones(self.map_dict["dimensions"]).astype(bool)
         self.obstacles = self.map_dict["obstacles"]
         for obstacle in self.obstacles:
-            self.map_np[obstacle[0], obstacle[1]] = False
+            # Obstacles are in the x, y convention
+            self.map_np[obstacle[1], obstacle[0]] = False
         self.unoccupied_inds = np.stack(np.where(self.map_np), axis=0).T
         if vis:
             plt.imshow(self.map_np)

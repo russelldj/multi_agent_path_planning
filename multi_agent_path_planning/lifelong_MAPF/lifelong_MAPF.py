@@ -43,10 +43,10 @@ def main():
     output = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map,max_timestep=10),
+        task_factory=RandomTaskFactory(world_map, max_timestep=10),
         task_allocator=RandomTaskAllocator(),
-        # mapf_solver=CBSSolver(),
-        mapf_solver=SippSolver(),
+        mapf_solver=CBSSolver(),
+        # mapf_solver=SippSolver(),
         dynamics_simulator=BaseDynamicsSimulator(),
     )
 
@@ -81,9 +81,6 @@ def lifelong_MAPF_experiment(
     # This is all agents
     agents = initial_agents
 
-    # Agents are not all at their goals
-    agents_at_goals = False
-
     output = {}
     active_task_list = []
     open_task_list = []
@@ -102,47 +99,45 @@ def lifelong_MAPF_experiment(
 
         # If there are no current tasks and the factory says there won't be any more
         # and all the agents are at the goal, break
-        if len(open_tasks) == 0 and no_new_tasks and agents_at_goals:
+        if len(open_tasks) == 0 and no_new_tasks and agents.all_at_goals():
             logging.info("Jobs Done")
             break
 
         # Assign the open tasks to the open agents
         agents = task_allocator.allocate_tasks(open_tasks, agents)
 
-        # Save active tasks        
+        # Save active tasks
         for agent in agents.agents:
             if agent.task is not None:
                 task_dict = agent.task.get_dict()
-                task_dict['t'] = timestep
+                task_dict["t"] = timestep
                 active_task_list.append(task_dict)
         output["active_tasks"] = active_task_list
 
-        # Save open tasks        
+        # Save open tasks
         for open_task in open_tasks.task_dict.values():
             task_dict = open_task.get_dict()
-            task_dict['t'] = timestep
+            task_dict["t"] = timestep
             open_task_list.append(task_dict)
         output["open_tasks"] = open_task_list
-        
+
         # Plan all the required paths
         agents = mapf_solver.solve_MAPF_instance(
             map_instance=map_instance, agents=agents, timestep=timestep,
         )
         # Step the simulation one step and record the paths
-        (agents, agents_at_goals) = dynamics_simulator.step_world(
-            agents=agents, timestep=timestep,
-        )
+        agents = dynamics_simulator.step_world(agents=agents, timestep=timestep,)
 
     # Save tasks one more time to match timestep of agents
     for agent in agents.agents:
         if agent.task is not None:
             task_dict = agent.task.get_dict()
-            task_dict['t'] = timestep+1
+            task_dict["t"] = timestep + 1
             active_task_list.append(task_dict)
     output["active_tasks"] = active_task_list
     for open_task in open_tasks.task_dict.values():
         task_dict = open_task.get_dict()
-        task_dict['t'] = timestep+1
+        task_dict["t"] = timestep + 1
         open_task_list.append(task_dict)
     output["open_tasks"] = open_task_list
 

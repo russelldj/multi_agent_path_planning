@@ -25,4 +25,5 @@ class BaseDynamicsSimulator:
         for agent_index in range(len(agents)):
             logging.info(f"Updating Agent: {agents.agents[agent_index].get_id()}")
             agents.agents[agent_index].soft_simulation_timestep_update()
-        return agents, False
+
+        return agents
