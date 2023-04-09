@@ -60,7 +60,7 @@ class RandomTaskFactory:
 
         n_tasks = np.sum(
             [
-                np.random.random() < self.per_task_prob
+                np.random.random() <= self.per_task_prob
                 for _ in range(self.max_tasks_per_timestep)
             ]
         )

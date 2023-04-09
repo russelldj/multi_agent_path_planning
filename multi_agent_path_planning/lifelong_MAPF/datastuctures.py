@@ -6,7 +6,6 @@ import yaml
 
 import logging
 
-
 class Location:
     def __init__(self, loc):
         """Reduce ambiguity about i,j vs. x,y convention
@@ -184,7 +183,7 @@ class Path:
 
 class Agent:
     def __init__(
-        self, loc, ID, goal=None, task: Task = None,
+        self, loc, ID, goal=None, task: Task = None, verbose = False
     ):
         """_summary_
 
@@ -204,6 +203,7 @@ class Agent:
         self.idle_timesteps = 0
         self.executed_path.add_pathnode(PathNode(self.loc, 0))
         self.timestep = 1
+        self.verbose = verbose
 
     def get_id(self):
         return self.ID
@@ -245,13 +245,14 @@ class Agent:
         return self.goal is not None
 
     def set_planned_path_from_plan(self, plan):
-        logging.info(f"Updating plan by adding nodes {self.ID}")
+        if self.verbose:
+            logging.info(f"Updating plan by adding nodes {self.ID}")
         temp_path = Path()
         for node in plan[self.ID][1:]:
             temp_loc = Location.from_xy((node["x"], node["y"]))
             temp_time = node["t"]
-
-            logging.info(f" adding node {temp_loc} {temp_time}")
+            if self.verbose:
+                logging.info(f" adding node {temp_loc} {temp_time}")
             temp_path.add_pathnode(PathNode(temp_loc, temp_time))
 
         self.planned_path = temp_path
@@ -263,18 +264,22 @@ class Agent:
 
     def soft_simulation_timestep_update(self):
         # if the agent has no plan is taskless
-        logging.info(f"Dynamics for agent {self.ID}")
+        if self.verbose:
+            logging.info(f"Dynamics for agent {self.ID}")
         if self.planned_path is None or len(self.planned_path) == 0:
-            logging.info("     Agent stationary")
-            logging.info(f"     current loc {self.loc}")
+            if self.verbose:
+                logging.info("     Agent stationary")
+                logging.info(f"     current loc {self.loc}")
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
             self.timestep += 1
             self.idle_timesteps += 1
         else:
-            logging.info("     Agent on the move")
-            logging.info(f"     current loc {self.loc}")
+            if self.verbose:
+                logging.info("     Agent on the move")
+                logging.info(f"     current loc {self.loc}")
             self.loc = self.planned_path.pop_pathnode().get_loc()
-            logging.info(f"     next loc {self.loc}")
+            if self.verbose:
+                logging.info(f"     next loc {self.loc}")
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
             self.timestep += 1
             # if path is exausted (goal reached)
@@ -417,6 +422,7 @@ class Map:
         selected_inds = np.random.choice(
             self.unoccupied_inds.shape[0], n_samples, replace=with_replacement
         )
+        
         selected_locs = self.unoccupied_inds[selected_inds]
         # Convert to Location datatype
         selected_locs = [Location(loc) for loc in selected_locs]

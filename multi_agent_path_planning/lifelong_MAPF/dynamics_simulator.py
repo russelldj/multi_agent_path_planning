@@ -8,7 +8,7 @@ class BaseDynamicsSimulator:
     """ """
 
     def step_world(
-        self, agents: AgentSet, timestep: int,
+        self, agents: AgentSet, timestep: int, verbose=False
     ):
         """
         Args:
@@ -20,10 +20,12 @@ class BaseDynamicsSimulator:
             agents_at_goals: Are all agents at the goals
         """
 
-        logging.info("Agent Simulation Step")
+        if verbose:
+            logging.info("Agent Simulation Step")
 
         for agent_index in range(len(agents)):
-            logging.info(f"Updating Agent: {agents.agents[agent_index].get_id()}")
+            if verbose:
+                logging.info(f"Updating Agent: {agents.agents[agent_index].get_id()}")
             agents.agents[agent_index].soft_simulation_timestep_update()
 
         return agents
