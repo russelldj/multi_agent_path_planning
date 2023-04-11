@@ -1,5 +1,6 @@
 import argparse
 import typing
+import numpy as np
 
 from multi_agent_path_planning.lifelong_MAPF.datastuctures import Agent, Map, TaskSet
 from multi_agent_path_planning.lifelong_MAPF.dynamics_simulator import (
@@ -20,8 +21,7 @@ from multi_agent_path_planning.lifelong_MAPF.task_factory import (
     RandomTaskFactory,
 )
 
-
-def main():
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file")
     parser.add_argument("output", help="output file with the schedule")
@@ -32,8 +32,15 @@ def main():
         help="Provide logging level. Example --loglevel debug, default=warning",
         choices=logging._nameToLevel.keys(),
     )
+    parser.add_argument("--random-seed", help="Optional random seed")
 
     args = parser.parse_args()
+    return args
+
+
+def main():
+    args = parse_args()
+    np.random.seed(args.random_seed)
     logging.basicConfig(level=args.loglevel.upper())
 
     logging.info(args.input)
@@ -43,7 +50,7 @@ def main():
     output = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map, max_timestep=10),
+        task_factory=RandomTaskFactory(world_map, max_timestep=50, per_task_prob=0.25),
         task_allocator=RandomTaskAllocator(),
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),
@@ -64,6 +71,7 @@ def lifelong_MAPF_experiment(
     mapf_solver: BaseMAPFSolver,
     dynamics_simulator: BaseDynamicsSimulator,
     max_timesteps: int = 100,
+    verbose: bool = False
 ):
     """
     Arguments:
@@ -80,6 +88,8 @@ def lifelong_MAPF_experiment(
 
     # This is all agents
     agents = initial_agents
+    for agent in agents.tolist():
+        agent.verbose = verbose
 
     output = {}
     active_task_list = []
@@ -87,8 +97,7 @@ def lifelong_MAPF_experiment(
 
     # Run for a fixed number of timesteps
     for timestep in range(max_timesteps):
-        logging.info("     ")
-        logging.info(f"Timestep: {timestep}")
+        logging.info(f"========== Timestep: {timestep} ==========")
 
         # Ask the task factory for new task
         new_tasks, no_new_tasks = task_factory.produce_tasks(timestep=timestep)
@@ -126,7 +135,7 @@ def lifelong_MAPF_experiment(
             map_instance=map_instance, agents=agents, timestep=timestep,
         )
         # Step the simulation one step and record the paths
-        agents = dynamics_simulator.step_world(agents=agents, timestep=timestep,)
+        agents = dynamics_simulator.step_world(agents=agents, timestep=timestep,verbose=verbose)
 
     # Save tasks one more time to match timestep of agents
     for agent in agents.agents:
@@ -140,6 +149,8 @@ def lifelong_MAPF_experiment(
         task_dict["t"] = timestep + 1
         open_task_list.append(task_dict)
     output["open_tasks"] = open_task_list
+
+    agents.report_metrics()
 
     # Combine visualization data
     output.update(agents.get_executed_paths())
