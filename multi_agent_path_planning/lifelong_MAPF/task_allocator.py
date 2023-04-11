@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+
 from multi_agent_path_planning.lifelong_MAPF.datastuctures import AgentSet, TaskSet
 import matplotlib.pyplot as plt
 

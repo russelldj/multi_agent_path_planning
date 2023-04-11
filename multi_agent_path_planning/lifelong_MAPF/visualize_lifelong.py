@@ -15,7 +15,6 @@ from matplotlib.patches import Arrow, Circle, Rectangle
 
 Colors = ["orange", "blue", "green"]
 
-
 class Animation:
     def __init__(self, map, output):
         self.map = map
