@@ -16,6 +16,7 @@ from call_function_with_timeout import SetTimeout
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
+import time
 from multiprocessing import Process
 import os
 
@@ -26,7 +27,9 @@ def plot_metrics(
     os.makedirs(output_folder, exist_ok=True)
     # Show fraction successful
     plt.plot(fracs_successful, label="Fraction successful")
-    plt.xticks(range(len(map_files)), [map_file.name for map_file in map_files])
+    plt.xticks(
+        range(len(map_files)), [map_file.name for map_file in map_files], rotation=45
+    )
     plt.title(
         f"Fraction of successful runs within the timelimit\n for {num_agents} agents"
     )
@@ -41,7 +44,7 @@ def plot_metrics(
         x = list(range(len(map_files)))
         plt.plot(x, means, label=f"{metric_name} with one std bound")
         plt.fill_between(x, means - stds, means + stds, alpha=0.3)
-        plt.xticks(x, [map_file.name for map_file in map_files])
+        plt.xticks(x, [map_file.name for map_file in map_files], rotation=45)
         plt.title(f"Metric: {metric_name}, for {num_agents} agents")
         plt.legend()
         plt.savefig(
@@ -57,6 +60,7 @@ def zipunzip_list_of_dicts(list_of_dicts):
     try:
         reformatted_dict = {k: [d[k] for d in list_of_dicts] for k in list_of_dicts[0]}
     except KeyError:
+        # This should never be encountered and needs to be inpected
         breakpoint()
     return reformatted_dict
 
@@ -97,6 +101,7 @@ def singlerun_experiment_runner(
     lifelong_MAPF_experiment_w_timeout = SetTimeout(
         lifelong_MAPF_experiment, timeout=timeout_seconds
     )
+    start = time.time()
     (is_done, is_timeout, error_message, results) = lifelong_MAPF_experiment_w_timeout(
         map_instance=map_instance,
         initial_agents=initial_agents,
@@ -106,24 +111,28 @@ def singlerun_experiment_runner(
         max_timesteps=max_timesteps,
         verbose=verbose,
     )
+    runtime = time.time() - start
     if is_timeout:
         return None
     else:
-        return results[1]
+        metrics = results[1]
+        metrics["runtime"] = runtime
+        return metrics
 
 
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
     map_glob="*",
-    nums_agents=(2, 3),
+    nums_agents=(2,),
     task_factory_cls=RandomTaskFactory,
     task_allocator_cls=RandomTaskAllocator,
     mapf_solver_cls=CBSSolver,
     max_timesteps=100,
-    num_random_trials=3,
+    num_random_trials=10,
+    n_maps=10,
     verbose=True,
 ):
-    map_files = sorted(map_folder.glob(map_glob))[:3]
+    map_files = sorted(map_folder.glob(map_glob))[:n_maps]
     results_dict = {}
     for num_agents in nums_agents:
         results_dict[num_agents] = {"fracs_successful": [], "means_and_stds": []}
@@ -140,7 +149,10 @@ def multirun_experiment_runner(
                     verbose=verbose,
                 )
                 metrics_list.append(metrics)
-            successful_metrics = [m for m in metrics_list if m is not None]
+            # TODO figure out why empty dicts are showing up
+            successful_metrics = [
+                m for m in metrics_list if (m is not None and m != {})
+            ]
             frac_successful = len(successful_metrics) / num_random_trials
             successful_metrics = zipunzip_list_of_dicts(successful_metrics)
             mean_and_std_per_metric = compute_mean_and_std_for_dict(successful_metrics)
