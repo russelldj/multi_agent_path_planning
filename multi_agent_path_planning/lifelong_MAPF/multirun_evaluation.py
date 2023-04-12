@@ -124,9 +124,9 @@ def multirun_experiment_runner(
     verbose=True,
 ):
     map_files = sorted(map_folder.glob(map_glob))[:3]
+    results_dict = {}
     for num_agents in nums_agents:
-        fracs_successful = []
-        means_and_stds = []
+        results_dict[num_agents] = {"fracs_successful": [], "means_and_stds": []}
         for map_file in tqdm(map_files):
             metrics_list = []
             for _ in range(num_random_trials):
@@ -145,14 +145,16 @@ def multirun_experiment_runner(
             successful_metrics = zipunzip_list_of_dicts(successful_metrics)
             mean_and_std_per_metric = compute_mean_and_std_for_dict(successful_metrics)
 
-            fracs_successful.append(frac_successful)
-            means_and_stds.append(mean_and_std_per_metric)
+            results_dict[num_agents]["fracs_successful"].append(frac_successful)
+            results_dict[num_agents]["means_and_stds"].append(mean_and_std_per_metric)
 
+    # Plotting
+    for num_agents in nums_agents:
         plot_metrics(
             map_files,
             num_agents,
-            fracs_successful,
-            means_and_stds,
+            fracs_successful=results_dict[num_agents]["fracs_successful"],
+            means_and_stds=results_dict[num_agents]["means_and_stds"],
             output_folder=Path(VIS_DIR, "evaluation"),
         )
 
