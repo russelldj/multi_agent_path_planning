@@ -21,6 +21,7 @@ from multi_agent_path_planning.lifelong_MAPF.task_factory import (
     RandomTaskFactory,
 )
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file")
@@ -69,9 +70,9 @@ def lifelong_MAPF_experiment(
     task_factory: BaseTaskFactory,
     task_allocator: BaseTaskAllocator,
     mapf_solver: BaseMAPFSolver,
-    dynamics_simulator: BaseDynamicsSimulator,
+    dynamics_simulator: BaseDynamicsSimulator = BaseDynamicsSimulator(),
     max_timesteps: int = 100,
-    verbose: bool = False
+    verbose: bool = False,
 ):
     """
     Arguments:
@@ -135,7 +136,9 @@ def lifelong_MAPF_experiment(
             map_instance=map_instance, agents=agents, timestep=timestep,
         )
         # Step the simulation one step and record the paths
-        agents = dynamics_simulator.step_world(agents=agents, timestep=timestep,verbose=verbose)
+        agents = dynamics_simulator.step_world(
+            agents=agents, timestep=timestep, verbose=verbose
+        )
 
     # Save tasks one more time to match timestep of agents
     for agent in agents.agents:
@@ -150,11 +153,11 @@ def lifelong_MAPF_experiment(
         open_task_list.append(task_dict)
     output["open_tasks"] = open_task_list
 
-    agents.report_metrics()
+    metrics = agents.report_metrics()
 
     # Combine visualization data
     output.update(agents.get_executed_paths())
-    return output
+    return output, metrics
 
 
 if __name__ == "__main__":

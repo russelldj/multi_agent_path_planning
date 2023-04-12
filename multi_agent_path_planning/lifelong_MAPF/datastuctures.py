@@ -6,6 +6,7 @@ import yaml
 
 import logging
 
+
 class Location:
     def __init__(self, loc):
         """Reduce ambiguity about i,j vs. x,y convention
@@ -182,9 +183,7 @@ class Path:
 
 
 class Agent:
-    def __init__(
-        self, loc, ID, goal=None, task: Task = None, verbose = False
-    ):
+    def __init__(self, loc, ID, goal=None, task: Task = None, verbose=False):
         """_summary_
 
         Args:
@@ -204,6 +203,9 @@ class Agent:
         self.executed_path.add_pathnode(PathNode(self.loc, 0))
         self.timestep = 1
         self.verbose = verbose
+
+    def __repr__(self) -> str:
+        return f"ID: {self.ID}, loc: {self.loc}, TODO"
 
     def get_id(self):
         return self.ID
@@ -303,6 +305,9 @@ class AgentSet:
     def __len__(self):
         return len(self.agents)
 
+    def __repr__(self) -> str:
+        return str(self.agents)
+
     def get_executed_paths(self):
         schedule = {}
 
@@ -350,40 +355,42 @@ class AgentSet:
     def any_agent_needs_new_plan(self):
         return np.any([a.needs_new_plan() for a in self.agents])
 
-    def report_metrics(self, show_violin=False):
+    def report_metrics(self, show_violin=False, vis=False):
         all_metrics = [a.get_metrics() for a in self.agents]
         # Flatten so each so it's a dict of metric names: list of all values
         all_metrics = {k: [m[k] for m in all_metrics] for k in all_metrics[0]}
-        n_agents = len(all_metrics[list(all_metrics.keys())[0]])
-        x = np.arange(n_agents)  # the label locations
-        width = 0.25  # the width of the bars
-        multiplier = 0
+        if vis:
+            n_agents = len(all_metrics[list(all_metrics.keys())[0]])
+            x = np.arange(n_agents)  # the label locations
+            width = 0.25  # the width of the bars
+            multiplier = 0
 
-        fig, ax = plt.subplots(layout="constrained")
+            fig, ax = plt.subplots(layout="constrained")
 
-        for attribute, measurement in all_metrics.items():
-            offset = width * multiplier
-            rects = ax.bar(x + offset, measurement, width, label=attribute)
-            ax.bar_label(rects, padding=3)
-            multiplier += 1
+            for attribute, measurement in all_metrics.items():
+                offset = width * multiplier
+                rects = ax.bar(x + offset, measurement, width, label=attribute)
+                ax.bar_label(rects, padding=3)
+                multiplier += 1
 
-        # Add some text for labels, title and custom x-axis tick labels, etc.
-        ax.set_title("Metrics by agent")
-        ax.set_xticks(x + width, x)
-        ax.legend()
-        plt.show()
+            # Add some text for labels, title and custom x-axis tick labels, etc.
+            ax.set_title("Metrics by agent")
+            ax.set_xticks(x + width, x)
+            ax.legend()
+            plt.show()
 
-        # Show the aggregate metrics
-        f, axs = plt.subplots(1, len(all_metrics.keys()))
-        plt.suptitle("Aggregate metric violin plots")
-        for i, (k, metrics) in enumerate(all_metrics.items()):
-            if show_violin:
-                axs[i].violinplot(metrics)
-            else:
-                axs[i].boxplot(metrics)
-            axs[i].set_title(k)
-        plt.legend()
-        plt.show()
+            # Show the aggregate metrics
+            f, axs = plt.subplots(1, len(all_metrics.keys()))
+            plt.suptitle("Aggregate metric violin plots")
+            for i, (k, metrics) in enumerate(all_metrics.items()):
+                if show_violin:
+                    axs[i].violinplot(metrics)
+                else:
+                    axs[i].boxplot(metrics)
+                axs[i].set_title(k)
+            plt.legend()
+            plt.show()
+        return all_metrics
 
 
 class Map:
@@ -422,7 +429,7 @@ class Map:
         selected_inds = np.random.choice(
             self.unoccupied_inds.shape[0], n_samples, replace=with_replacement
         )
-        
+
         selected_locs = self.unoccupied_inds[selected_inds]
         # Convert to Location datatype
         selected_locs = [Location(loc) for loc in selected_locs]
