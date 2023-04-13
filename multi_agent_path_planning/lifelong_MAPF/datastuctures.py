@@ -228,9 +228,9 @@ class Agent:
 
     def get_metrics(self):
         return {
-            "pathlength": self.executed_path.get_len(),
-            "n_completed_tasks": self.n_completed_task,
-            "idle_timesteps": self.idle_timesteps,
+            "pathlength": int(self.executed_path.get_len()),
+            "n_completed_tasks": int(self.n_completed_task),
+            "idle_timesteps": int(self.idle_timesteps),
         }
 
     def get_as_dict(self):

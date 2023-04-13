@@ -18,6 +18,10 @@ class BaseTaskAllocator:
         """
         return agents
 
+    @classmethod
+    def get_name(cls):
+        return "base"
+
 
 class RandomTaskAllocator:
     def allocate_tasks(self, tasks: TaskSet, agents: AgentSet) -> AgentSet:
@@ -50,3 +54,7 @@ class RandomTaskAllocator:
 
         # Return the agents which were updated by reference
         return agents
+
+    @classmethod
+    def get_name(cls):
+        return "random"
