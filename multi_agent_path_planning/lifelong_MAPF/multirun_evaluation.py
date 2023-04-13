@@ -1,27 +1,55 @@
-from multi_agent_path_planning.config import BENCHMARK_DIR, MEAN_KEY, STD_KEY, VIS_DIR
+import itertools
+import json
+import logging
+import os
+import time
+from collections import defaultdict
+from multiprocessing import Process
 from pathlib import Path
-from multi_agent_path_planning.lifelong_MAPF.lifelong_MAPF import (
-    lifelong_MAPF_experiment,
-)
+
+import matplotlib.pyplot as plt
+import numpy as np
+from call_function_with_timeout import SetTimeout
+from tqdm import tqdm
+
+from multi_agent_path_planning.config import BENCHMARK_DIR, MEAN_KEY, STD_KEY, VIS_DIR
 from multi_agent_path_planning.lifelong_MAPF.datastuctures import Agent, Map, TaskSet
-from multi_agent_path_planning.lifelong_MAPF.helpers import *
-from multi_agent_path_planning.lifelong_MAPF.mapf_solver import CBSSolver
-from multi_agent_path_planning.lifelong_MAPF.task_allocator import RandomTaskAllocator
-from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 from multi_agent_path_planning.lifelong_MAPF.dynamics_simulator import (
     BaseDynamicsSimulator,
 )
-import numpy as np
-from call_function_with_timeout import SetTimeout
-import matplotlib.pyplot as plt
+from multi_agent_path_planning.lifelong_MAPF.helpers import *
+from multi_agent_path_planning.lifelong_MAPF.lifelong_MAPF import (
+    lifelong_MAPF_experiment,
+)
+from multi_agent_path_planning.lifelong_MAPF.mapf_solver import CBSSolver
+from multi_agent_path_planning.lifelong_MAPF.task_allocator import RandomTaskAllocator
+from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
-from tqdm import tqdm
-import time
-from multiprocessing import Process
-import os
+
+def make_key_tuple_from_config_dict(config_dict):
+    key_tuple = (
+        config_dict["map_file"].name,
+        config_dict["num_agents"],
+        config_dict["task_factory_cls"].get_name(),
+        config_dict["task_allocator_cls"].get_name(),
+        config_dict["mapf_solver_cls"].get_name(),
+    )
+    return key_tuple
 
 
-def plot_metrics(
+def save_to_json(results_dict, savepath: Path):
+    results_dict = dict(results_dict)
+    results_dict = {str(k): v for k, v in results_dict.items()}
+    os.makedirs(savepath.parent, exist_ok=True)
+    with open(savepath, "w") as f:
+        json.dump(results_dict, f)
+
+
+def plot_metrics_for_given_map():
+    breakpoint()
+
+
+def plot_metrics_for_given_n_agents(
     map_files, num_agents, fracs_successful, means_and_stds, output_folder
 ):
     os.makedirs(output_folder, exist_ok=True)
@@ -123,52 +151,59 @@ def singlerun_experiment_runner(
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
     map_glob="*",
-    nums_agents=(2,),
-    task_factory_cls=RandomTaskFactory,
-    task_allocator_cls=RandomTaskAllocator,
-    mapf_solver_cls=CBSSolver,
-    max_timesteps=100,
-    num_random_trials=10,
+    nums_agents=(2, 3, 4, 5),
+    task_factory_classes=(RandomTaskFactory,),
+    task_allocator_classes=(RandomTaskAllocator,),
+    mapf_solver_classes=(CBSSolver,),
     n_maps=10,
+    max_timesteps=100,
+    timeout_seconds=10,
+    num_random_trials=10,
     verbose=True,
 ):
     map_files = sorted(map_folder.glob(map_glob))[:n_maps]
-    results_dict = {}
-    for num_agents in nums_agents:
-        results_dict[num_agents] = {"fracs_successful": [], "means_and_stds": []}
-        for map_file in tqdm(map_files):
-            metrics_list = []
-            for _ in range(num_random_trials):
-                metrics = singlerun_experiment_runner(
-                    map_file=map_file,
-                    num_agents=num_agents,
-                    task_factory_cls=task_factory_cls,
-                    task_allocator_cls=task_allocator_cls,
-                    mapf_solver_cls=mapf_solver_cls,
-                    max_timesteps=max_timesteps,
-                    verbose=verbose,
-                )
-                metrics_list.append(metrics)
-            # TODO figure out why empty dicts are showing up
-            successful_metrics = [
-                m for m in metrics_list if (m is not None and m != {})
-            ]
-            frac_successful = len(successful_metrics) / num_random_trials
-            successful_metrics = zipunzip_list_of_dicts(successful_metrics)
-            mean_and_std_per_metric = compute_mean_and_std_for_dict(successful_metrics)
 
-            results_dict[num_agents]["fracs_successful"].append(frac_successful)
-            results_dict[num_agents]["means_and_stds"].append(mean_and_std_per_metric)
-
-    # Plotting
-    for num_agents in nums_agents:
-        plot_metrics(
+    config_tuples = list(
+        itertools.product(
             map_files,
-            num_agents,
-            fracs_successful=results_dict[num_agents]["fracs_successful"],
-            means_and_stds=results_dict[num_agents]["means_and_stds"],
-            output_folder=Path(VIS_DIR, "evaluation"),
+            nums_agents,
+            task_factory_classes,
+            task_allocator_classes,
+            mapf_solver_classes,
         )
+    )
+    # Repeat each option num_random_trials times
+    config_tuples = list(
+        itertools.chain.from_iterable(
+            (itertools.repeat(config_tuples, num_random_trials))
+        )
+    )
+    np.random.shuffle(config_tuples)
+    config_dicts = [
+        {
+            "map_file": t[0],
+            "num_agents": t[1],
+            "task_factory_cls": t[2],
+            "task_allocator_cls": t[3],
+            "mapf_solver_cls": t[4],
+        }
+        for t in config_tuples
+    ]
+    logging.warning(f"Running {len(config_dicts)} number of different configurations")
+
+    results_dict = defaultdict(list)
+    progress_bar = tqdm(config_dicts)
+    for config_dict in progress_bar:
+        experiment_key = make_key_tuple_from_config_dict(config_dict)
+        progress_bar.set_description(str(experiment_key))
+        experiment_result = singlerun_experiment_runner(
+            verbose=verbose,
+            timeout_seconds=timeout_seconds,
+            max_timesteps=max_timesteps,
+            **config_dict,
+        )
+        results_dict[experiment_key].append(experiment_result)
+        save_to_json(results_dict=results_dict, savepath=Path(VIS_DIR, "results.json"))
 
 
 if __name__ == "__main__":
