@@ -25,6 +25,8 @@ from multi_agent_path_planning.lifelong_MAPF.mapf_solver import CBSSolver
 from multi_agent_path_planning.lifelong_MAPF.task_allocator import RandomTaskAllocator
 from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
+JSON_PATH = Path(VIS_DIR, "results.json")
+
 
 def make_key_tuple_from_config_dict(config_dict):
     key_tuple = (
@@ -45,7 +47,42 @@ def save_to_json(results_dict, savepath: Path):
         json.dump(results_dict, f)
 
 
-def plot_metrics_for_given_map():
+def break_up_by_key_elements(data, ind):
+    """_summary_
+
+    Args:
+        data (_type_): _description_
+        ind (_type_): _description_
+
+    Returns:
+        _type_: Each unique value for that trait is a key. Each value is a dict mapping from the full
+                config to the values
+    """
+    # Preprocess to get a list of keys
+    list_of_tuples = [tuple(x[1:-1].split(", ")) for x in data.keys()]
+    list_of_tuples = [tuple((eval(y) for y in x)) for x in list_of_tuples]
+    values = list(data.values())
+
+    selected_values = [(x[ind]) for x in list_of_tuples]
+    unique_values, inv = np.unique(selected_values, return_inverse=True)
+    output_dict = {}
+    for unique_value in unique_values:
+        matching_inds = np.where(unique_value == inv)[0]
+        output_dict[unique_value] = {
+            list_of_tuples[i]: values[i] for i in matching_inds
+        }
+    return output_dict
+
+
+def vis_from_json(savepath):
+    with open(savepath, "r") as f:
+        data = json.load(f)
+    plot_success_versus_metric(data)
+    breakpoint()
+
+
+def plot_success_versus_metric(data, breakup_metric, versus_metric):
+    broken_by_number_of_agents = break_up_by_key_elements(data=data, ind=1)
     breakpoint()
 
 
@@ -203,8 +240,9 @@ def multirun_experiment_runner(
             **config_dict,
         )
         results_dict[experiment_key].append(experiment_result)
-        save_to_json(results_dict=results_dict, savepath=Path(VIS_DIR, "results.json"))
+        save_to_json(results_dict=results_dict, savepath=JSON_PATH)
 
 
 if __name__ == "__main__":
+    vis_from_json(JSON_PATH)
     multirun_experiment_runner()
