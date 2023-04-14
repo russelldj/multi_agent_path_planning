@@ -41,14 +41,14 @@ def parse_args():
 
 def main():
     args = parse_args()
-    np.random.seed(args.random_seed)
+    np.random.seed(int(args.random_seed))
     logging.basicConfig(level=args.loglevel.upper())
 
     logging.info(args.input)
 
     world_map = Map(args.input)
 
-    output = lifelong_MAPF_experiment(
+    output, metrics = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
         task_factory=RandomTaskFactory(world_map, max_timestep=50, per_task_prob=0.25),
