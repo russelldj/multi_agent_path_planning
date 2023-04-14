@@ -40,7 +40,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    np.random.seed(args.random_seed)
+    np.random.seed(int(args.random_seed))
     logging.basicConfig(level=args.loglevel.upper())
 
     logging.info(args.input)
@@ -50,7 +50,7 @@ def main():
     output = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map, max_timestep=50, per_task_prob=0.25),
+        task_factory=RandomTaskFactory(world_map, max_timestep=4, per_task_prob=1.0),
         task_allocator=RandomTaskAllocator(),
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),

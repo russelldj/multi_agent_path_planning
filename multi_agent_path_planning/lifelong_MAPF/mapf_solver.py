@@ -105,6 +105,10 @@ class CBSSolver:
             return_counts=True,
             axis=0,
         )
+        for a in agent_list:
+            print(a)
+            if a["goal"] is not None:
+                print(type(a["goal"])   )
         # Iterate over unique goals
         for i in range(len(unique_goals)):
             # If there are duplicates
