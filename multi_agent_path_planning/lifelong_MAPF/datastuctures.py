@@ -238,7 +238,7 @@ class Agent:
             "goal": list(self.goal.as_xy())
             if self.goal is not None
             else None,  # There is no goal set
-            "name": str(self.ID),
+            "name": str(self.ID)
         }
 
     def is_allocated(self):
