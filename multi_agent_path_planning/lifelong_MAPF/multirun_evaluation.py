@@ -7,6 +7,7 @@ from collections import defaultdict
 from multiprocessing import Process
 from pathlib import Path
 
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 from call_function_with_timeout import SetTimeout
@@ -26,6 +27,14 @@ from multi_agent_path_planning.lifelong_MAPF.task_allocator import RandomTaskAll
 from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
 JSON_PATH = Path(VIS_DIR, "results.json")
+
+NAMES_TO_INDS = {
+    "map_file": 0,
+    "num_agents": 1,
+    "task_factory_cls": 2,
+    "task_allocator_cls": 3,
+    "mapf_solver_cls": 4,
+}
 
 
 def make_key_tuple_from_config_dict(config_dict):
@@ -47,7 +56,7 @@ def save_to_json(results_dict, savepath: Path):
         json.dump(results_dict, f)
 
 
-def break_up_by_key_elements(data, ind):
+def break_up_by_key_elements(data, metric):
     """_summary_
 
     Args:
@@ -59,31 +68,99 @@ def break_up_by_key_elements(data, ind):
                 config to the values
     """
     # Preprocess to get a list of keys
-    list_of_tuples = [tuple(x[1:-1].split(", ")) for x in data.keys()]
-    list_of_tuples = [tuple((eval(y) for y in x)) for x in list_of_tuples]
+    ind = NAMES_TO_INDS[metric]
+    selected_keys = [x[ind] for x in data.keys()]
+    keys = list(data.keys())
     values = list(data.values())
 
-    selected_values = [(x[ind]) for x in list_of_tuples]
-    unique_values, inv = np.unique(selected_values, return_inverse=True)
+    unique_keys, inv = np.unique(selected_keys, return_inverse=True)
     output_dict = {}
-    for unique_value in unique_values:
-        matching_inds = np.where(unique_value == inv)[0]
-        output_dict[unique_value] = {
-            list_of_tuples[i]: values[i] for i in matching_inds
-        }
+    for i in range(max(inv) + 1):
+        matching_inds = np.where(i == inv)[0]
+        unique_key = unique_keys[i]
+        output_dict[unique_key] = {keys[i]: values[i] for i in matching_inds}
     return output_dict
 
 
 def vis_from_json(savepath):
     with open(savepath, "r") as f:
         data = json.load(f)
-    plot_success_versus_metric(data)
-    breakpoint()
+    values = data.values()
+    keys = [tuple(x[1:-1].split(", ")) for x in data.keys()]
+    keys = [tuple((eval(y) for y in x)) for x in keys]
+    data = {k: v for k, v in zip(keys, values)}
+    # "map_file": 0,
+    # "num_agents": 1,
+    # "task_factory_cls": 2,
+    # "task_allocator_cls": 3,
+    # "mapf_solver_cls": 4,
+    plot_all_data(
+        data,
+        breakup_config="map_file",
+        versus_config="num_agents",
+        compare_config="task_allocator_cls",
+        vis_metric="pathlength",
+    )
 
 
-def plot_success_versus_metric(data, breakup_metric, versus_metric):
-    broken_by_number_of_agents = break_up_by_key_elements(data=data, ind=1)
-    breakpoint()
+def plot_one_data(data, versus_config, compare_config, vis_metric):
+    # On key per value that we're comparing across
+    by_comparison_metric = break_up_by_key_elements(data, compare_config)
+    for compare_key, values_for_compare_key in by_comparison_metric.items():
+        # Break up by versus metric
+        broken_up_by_versus = break_up_by_key_elements(
+            values_for_compare_key, metric=versus_config
+        )
+        fracs_valid = []
+        means = []
+        stds = []
+        for v in broken_up_by_versus.values():
+            metrics_for_one_config = list(v.values())[0]
+            valid_metrics = [x for x in metrics_for_one_config if x is not None]
+            valid_values = [x[vis_metric] for x in valid_metrics]
+            frac_valid = len(valid_metrics) / len(metrics_for_one_config)
+            fracs_valid.append(frac_valid)
+            if len(valid_values) > 0:
+                means.append(np.mean(valid_values))
+                stds.append(np.std(valid_values))
+            else:
+                means.append(np.nan)
+                stds.append(np.nan)
+        f, axs = plt.subplots(1, 2)
+        means = np.array(means)
+        stds = np.array(stds)
+        x_values = np.array(list(broken_up_by_versus.keys()))
+        axs[0].plot(x_values, means)
+        axs[0].fill_between(x_values, means - stds, means + stds, alpha=0.3)
+        axs[1].plot(x_values, fracs_valid)
+
+        axs[0].set_ylabel(f"Metric: {vis_metric}")
+        axs[1].set_ylabel(f"Fraction valid")
+
+        axs[0].set_xlabel(versus_config)
+        axs[1].set_xlabel(versus_config)
+        plt.show()
+        # Compute mean and std for each metric
+        # Plot
+
+
+def plot_all_data(data, breakup_config, versus_config, compare_config, vis_metric):
+    """_summary_
+
+    Args:
+        data (_type_): _description_
+        breakup_metric (_type_): Make a different plot for each of these (categorical) values
+        versus_metric (_type_): Use this metric (float) as the x axis
+        compare_metric (_type_): Create a different line on the same plot for this (categorical) value
+    """
+    broken_ups = break_up_by_key_elements(data=data, metric=breakup_config)
+    for broken_up in broken_ups.values():
+        plot_one_data(
+            broken_up,
+            versus_config=versus_config,
+            compare_config=compare_config,
+            vis_metric=vis_metric,
+        )
 
 
 def plot_metrics_for_given_n_agents(
@@ -243,6 +320,16 @@ def multirun_experiment_runner(
         save_to_json(results_dict=results_dict, savepath=JSON_PATH)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--vis-existing-json", action="store_true")
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
-    vis_from_json(JSON_PATH)
-    multirun_experiment_runner()
+    args = parse_args()
+    if args.vis_existing_json:
+        vis_from_json(JSON_PATH)
+    else:
+        multirun_experiment_runner()
