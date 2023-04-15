@@ -82,12 +82,11 @@ def break_up_by_key_elements(data, metric):
     return output_dict
 
 
-def plot_one_data(
-    data, breakup_config_value, compare_config, versus_config, vis_metric
-):
+def plot_one_data(data, compare_config, versus_config, vis_metric, plot_title):
     # On key per value that we're comparing across
     by_comparison_metric = break_up_by_key_elements(data, compare_config)
-    for values_for_compare_key in by_comparison_metric.values():
+    f, axs = plt.subplots(1, 2)
+    for compare_key, values_for_compare_key in by_comparison_metric.items():
         # Break up by versus metric
         broken_up_by_versus = break_up_by_key_elements(
             values_for_compare_key, metric=versus_config
@@ -107,21 +106,23 @@ def plot_one_data(
             else:
                 means.append(np.nan)
                 stds.append(np.nan)
-        f, axs = plt.subplots(1, 2)
         means = np.array(means)
         stds = np.array(stds)
         x_values = np.array(list(broken_up_by_versus.keys()))
-        axs[0].plot(x_values, means)
+        axs[0].plot(x_values, means, label=compare_key)
         axs[0].fill_between(x_values, means - stds, means + stds, alpha=0.3)
-        axs[1].plot(x_values, fracs_valid)
+        axs[1].plot(x_values, fracs_valid, label=compare_key)
 
         axs[0].set_ylabel(f"Metric: {vis_metric}")
         axs[1].set_ylabel(f"Fraction valid")
 
         axs[0].set_xlabel(versus_config)
         axs[1].set_xlabel(versus_config)
-        plt.suptitle(breakup_config_value)
-        plt.show()
+
+    axs[0].legend()
+    axs[1].legend()
+    plt.suptitle(plot_title)
+    plt.show()
 
 
 def plot_all_data(
@@ -145,10 +146,10 @@ def plot_all_data(
     for breakup_config_key, broken_up_value in broken_ups.items():
         plot_one_data(
             broken_up_value,
-            breakup_config_value=breakup_config_key,
             compare_config=compare_config,
             versus_config=versus_config,
             vis_metric=vis_metric,
+            plot_title=f"{breakup_config}: {breakup_config_key}",
         )
 
 
@@ -161,7 +162,13 @@ def compute_mean_and_std_for_dict(dict_of_metrics):
     return aggregate_metrics_dict
 
 
-def vis_from_json(savepath):
+def vis_from_json(
+    savepath,
+    breakup_config="mapf_solver_cls",
+    versus_config="num_agents",
+    compare_config="map_file",
+    vis_metric="runtime",
+):
     with open(savepath, "r") as f:
         data = json.load(f)
     values = data.values()
@@ -170,10 +177,10 @@ def vis_from_json(savepath):
     data = {k: v for k, v in zip(keys, values)}
     plot_all_data(
         data,
-        breakup_config="map_file",
-        versus_config="num_agents",
-        compare_config="task_allocator_cls",
-        vis_metric="pathlength",
+        breakup_config=breakup_config,
+        versus_config=versus_config,
+        compare_config=compare_config,
+        vis_metric=vis_metric,
     )
 
 
@@ -284,6 +291,10 @@ def multirun_experiment_runner(
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vis-existing-json", action="store_true")
+    parser.add_argument("--vis-breakup-config", default="mapf_solver_cls")
+    parser.add_argument("--vis-versus-config", default="num_agents")
+    parser.add_argument("--vis-compare-config", default="map_file")
+    parser.add_argument("--vis-metric", default="runtime")
     args = parser.parse_args()
     return args
 
@@ -291,6 +302,12 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     if args.vis_existing_json:
-        vis_from_json(JSON_PATH)
+        vis_from_json(
+            JSON_PATH,
+            breakup_config=args.vis_breakup_config,
+            compare_config=args.vis_compare_config,
+            versus_config=args.vis_versus_config,
+            vis_metric=args.vis_metric,
+        )
     else:
         multirun_experiment_runner()
