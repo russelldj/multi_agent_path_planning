@@ -51,6 +51,11 @@ class Location:
     def j(self):
         return self.ij_loc[1]
 
+    def manhatan_dist(self, other):
+        diff = np.array(self.as_ij()) - np.array(other.as_ij())
+        dist = np.sum(np.abs(diff))
+        return dist
+
 
 class Task:
     def __init__(self, start, goal, timestep):
@@ -84,7 +89,7 @@ class TaskSet:
             task_iterable (typing.Iterable, optional): The individual tasks. Defaults to ().
         """
         self.task_dict = {i: task_iterable[i] for i in range(len(task_iterable))}
-        self.next_key = len(task_iterable) + 1
+        self.next_key = len(task_iterable)
 
     def __len__(self) -> int:
         """The number of tasks
@@ -93,6 +98,9 @@ class TaskSet:
             int: the number of tasks
         """
         return len(self.task_dict)
+
+    def task_list(self):
+        return list(self.task_dict.values())
 
     def add_tasks(self, task_iterable: typing.Iterable[Task]):
         """Add new tasks to the set
@@ -119,6 +127,13 @@ class TaskSet:
         chosen_keys = np.random.choice(keys, size=n_tasks, replace=False)
         tasks = [self.task_dict.pop(k) for k in chosen_keys]
         return tasks
+
+    def pop_task(self, task: Task):
+        try:
+            self.task_dict.pop(task.task_id)
+        except KeyError:
+            print(self.task_dict)
+            breakpoint()
 
 
 class PathNode:
@@ -240,7 +255,7 @@ class Agent:
             "goal": list(self.goal.as_xy())
             if self.goal is not None
             else None,  # There is no goal set
-            "name": str(self.ID),
+            "name": str(self.ID)
         }
 
     def is_allocated(self):
@@ -391,6 +406,7 @@ class AgentSet:
             plt.legend()
             plt.show()
         return all_metrics
+
 
 
 class Map:

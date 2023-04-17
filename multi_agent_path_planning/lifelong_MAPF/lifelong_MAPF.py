@@ -15,6 +15,8 @@ from multi_agent_path_planning.lifelong_MAPF.mapf_solver import (
 from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
     BaseTaskAllocator,
     RandomTaskAllocator,
+    LinearSumTaskAllocator,
+    TASK_ALLOCATOR_CLASS_DICT,
 )
 from multi_agent_path_planning.lifelong_MAPF.task_factory import (
     BaseTaskFactory,
@@ -26,6 +28,12 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file")
     parser.add_argument("output", help="output file with the schedule")
+    parser.add_argument(
+        "--allocator",
+        choices=TASK_ALLOCATOR_CLASS_DICT.keys(),
+        help="which allocator to use",
+        default="random",
+    )
     parser.add_argument(
         "-log",
         "--loglevel",
@@ -48,11 +56,13 @@ def main():
 
     world_map = Map(args.input)
 
-    output, metrics = lifelong_MAPF_experiment(
+    allocator = TASK_ALLOCATOR_CLASS_DICT[args.allocator]()
+
+    output = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map, max_timestep=5, per_task_prob=1.0),
-        task_allocator=RandomTaskAllocator(),
+        task_factory=RandomTaskFactory(world_map, max_timestep=40, per_task_prob=0.3),
+        task_allocator=allocator,
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),
         dynamics_simulator=BaseDynamicsSimulator(),
