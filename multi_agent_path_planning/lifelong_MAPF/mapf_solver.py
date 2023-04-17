@@ -32,6 +32,10 @@ class BaseMAPFSolver:
         """
         return agents
 
+    @classmethod
+    def get_name(cls):
+        return "base"
+
 
 class SippSolver:
     """
@@ -218,3 +222,7 @@ class CBSSolver:
             ].set_planned_path_from_plan(solution)
 
         return agents
+
+    @classmethod
+    def get_name(cls):
+        return "base"

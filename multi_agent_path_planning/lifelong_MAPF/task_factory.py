@@ -24,6 +24,10 @@ class BaseTaskFactory:
 
         return [], True
 
+    @classmethod
+    def get_name(cls):
+        return "base"
+
 
 class RandomTaskFactory:
     def __init__(
@@ -76,3 +80,7 @@ class RandomTaskFactory:
             self.next_task_id += 1
 
         return task_list, False
+
+    @classmethod
+    def get_name(cls):
+        return "random"

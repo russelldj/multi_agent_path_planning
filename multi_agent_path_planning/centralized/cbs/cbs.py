@@ -12,6 +12,7 @@ import argparse
 from copy import deepcopy
 from itertools import combinations
 from math import fabs
+import logging
 
 import yaml
 
@@ -346,7 +347,7 @@ class CBS(object):
             self.env.constraint_dict = P.constraint_dict
             conflict_dict = self.env.get_first_conflict(P.solution)
             if not conflict_dict:
-                print("solution found")
+                logging.info("solution found")
 
                 return self.generate_plan(P.solution)
 
