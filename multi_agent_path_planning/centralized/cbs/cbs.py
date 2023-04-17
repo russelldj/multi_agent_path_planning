@@ -327,7 +327,6 @@ class CBS(object):
     def search(self):
         start = HighLevelNode()
         # TODO: Initialize it in a better way
-        print("000000000000000000000000000")
         start.constraint_dict = {}
         for agent in self.env.agent_dict.keys():
             start.constraint_dict[agent] = Constraints()
