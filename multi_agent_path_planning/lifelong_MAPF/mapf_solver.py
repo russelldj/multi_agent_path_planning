@@ -13,7 +13,7 @@ from multi_agent_path_planning.centralized.cbs.cbs import CBS, Environment
 import numpy as np
 import logging
 from copy import copy
-
+from sklearn.cluster import KMeans
 
 class BaseMAPFSolver:
     """
@@ -85,6 +85,45 @@ class CBSSolver:
     """
     Def
     """
+    def __init__(self):
+        self.idle_goals = []
+
+    def find_closest_list_index(self, element, list):
+        best_dist = np.inf
+        best_i = 0
+        for i,item in enumerate(list):
+            dist = np.linalg.norm(np.array(element) - np.array(item))
+            if dist < best_dist:
+                best_i = i
+                best_dist = dist
+        return best_i
+
+    def pick_idle_goals(self, map_instance, agent_list):
+        n_agents = len(agent_list)
+        unoccupied_inds_xy_list = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+        for agent in agent_list:
+            if agent["goal"] is not None:
+                unoccupied_inds_xy_list.append(agent["goal"])
+
+        kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(unoccupied_inds_xy_list)
+        idle_locs = np.rint(kmeans.cluster_centers_).tolist()
+        idle_goals = []
+        for idle_loc in idle_locs:
+            if idle_loc not in unoccupied_inds_xy_list:
+                closest_i = self.find_closest_list_index(idle_loc, unoccupied_inds_xy_list)
+                idle_loc = unoccupied_inds_xy_list[closest_i]
+                idle_goals.append(idle_loc)
+            else:
+                idle_goals.append(idle_loc)
+
+        # Assign agent goals
+        print("++++++++++")
+        for agent in agent_list:
+            if agent["goal"] is None:
+                closest_i = self.find_closest_list_index(agent["start"], idle_goals)
+                agent["goal"] = idle_goals[closest_i]
+                idle_goals.pop(closest_i)
+        print("--------------------------")
 
     def fixup_goals(self, map_instance: Map, agent_list: typing.List[Agent]):
         """Some goals may be unset, others may be duplicates
@@ -105,37 +144,42 @@ class CBSSolver:
             return_counts=True,
             axis=0,
         )
-        # Iterate over unique goals
-        for i in range(len(unique_goals)):
-            # If there are duplicates
-            if counts[i] > 1:
-                # Find which inds match
-                duplicate_inds = np.where(inv == i)[0]
-                del_inds = np.random.choice(
-                    duplicate_inds, size=counts[i] - 1, replace=False
-                )
-                for del_ind in del_inds:
-                    initial_goals[del_ind] = None
-        # This is going to be filled out
-        final_goals = copy(initial_goals)
-        # We randomize the allocation order to avoid bias
-        permutation = np.random.permutation(len(initial_goals))
-        # Run through the goals
-        for i in permutation:
-            initial_goal = initial_goals[i]
-            # Is this not set
-            if initial_goal is None:
-                valid = False
-                # Randomly sample of a goal in freespace
-                while not valid:
-                    random_loc = list(
-                        map_instance.get_random_unoccupied_locs(n_samples=1)[0].as_xy()
-                    )
-                    if random_loc not in final_goals:
-                        valid = True
-                        final_goals[i] = random_loc
-        for i, final_goal in enumerate(final_goals):
-            agent_list[i]["goal"] = final_goal
+
+        self.pick_idle_goals(map_instance, agent_list)
+
+        # # Iterate over unique goals
+        # for i in range(len(unique_goals)):
+        #     # If there are duplicates
+        #     if counts[i] > 1:
+        #         # Find which inds match
+        #         duplicate_inds = np.where(inv == i)[0]
+        #         del_inds = np.random.choice(
+        #             duplicate_inds, size=counts[i] - 1, replace=False
+        #         )
+        #         for del_ind in del_inds:
+        #             initial_goals[del_ind] = None
+        # # This is going to be filled out
+        # final_goals = copy(initial_goals)
+        # # We randomize the allocation order to avoid bias
+        # permutation = np.random.permutation(len(initial_goals))
+        # # Run through the goals
+        # for i in permutation:
+        #     initial_goal = initial_goals[i]
+        #     # Is this not set
+        #     if initial_goal is None:
+        #         valid = False
+        #         # Randomly sample of a goal in freespace
+        #         while not valid:
+        #             random_loc = list(
+        #                 map_instance.get_random_unoccupied_locs(n_samples=1)[0].as_xy()
+        #             )
+        #             if random_loc not in final_goals:
+        #                 valid = True
+        #                 final_goals[i] = random_loc
+        # for i, final_goal in enumerate(final_goals):
+        #     agent_list[i]["goal"] = final_goal
+        for agent in agent_list:
+            print(agent)
         return agent_list
 
     def solve_MAPF_instance(
@@ -149,8 +193,8 @@ class CBSSolver:
             timestep: The simulation timestep
         """
         # No new plans need to be added
-        if not agents.any_agent_needs_new_plan():
-            return agents
+        # if not agents.any_agent_needs_new_plan():
+        #     return agents
 
         # Get the dimensions, agents, and obstacles in the expected format
         dimension = map_instance.get_dim()
@@ -163,7 +207,9 @@ class CBSSolver:
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
+        print("solving")
         solution = cbs.search()
+        print("solved")
 
         # Set the paths for each agent
         for agent_id in solution.keys():
