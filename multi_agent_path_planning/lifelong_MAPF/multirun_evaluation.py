@@ -233,14 +233,14 @@ def singlerun_experiment_runner(
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
     map_glob="*",
-    nums_agents=(2, 3, 4, 5),
+    nums_agents=list(range(2,8)),
     task_factory_classes=(RandomTaskFactory,),
     task_allocator_classes=(RandomTaskAllocator,),
     mapf_solver_classes=(CBSSolver,),
-    n_maps=10,
+    n_maps=4,
     max_timesteps=100,
-    timeout_seconds=10,
-    num_random_trials=10,
+    timeout_seconds=20,
+    num_random_trials=3,
     verbose=True,
 ):
     map_files = sorted(map_folder.glob(map_glob))[:n_maps]

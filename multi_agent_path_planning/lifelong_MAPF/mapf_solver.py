@@ -159,7 +159,7 @@ class CBSSolver:
         #         closest_i = self.find_closest_list_index(agent["start"], idle_goals)
         #         agent["goal"] = idle_goals[closest_i]
         #         idle_goals.pop(closest_i)
-        print("--------------------------")
+        #print("--------------------------")
 
     def fixup_goals(self, map_instance: Map, agent_list: typing.List[Agent]):
         """Some goals may be unset, others may be duplicates
@@ -238,16 +238,16 @@ class CBSSolver:
 
         # Make sure there are no errors in the agent list
         agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
-        for agent in agent_list:
-            print(agent)
+        #for agent in agent_list:
+        #    print(agent)
         
         # Create an environment and solver
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        print("solving..")
+        #print("solving..")
         solution = cbs.search()
-        print("solved!")
+        #print("solved!")
 
         # Set the paths for each agent
         for agent_id in solution.keys():
