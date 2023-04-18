@@ -61,7 +61,7 @@ def main():
     output, metrics = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map, max_timestep=50, max_tasks=5, per_task_prob=0.3),
+        task_factory=RandomTaskFactory(world_map, max_timestep=50, max_tasks=4, per_task_prob=0.3),
         task_allocator=allocator,
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),
@@ -111,7 +111,7 @@ def lifelong_MAPF_experiment(
         logging.info(f"========== Timestep: {timestep} ==========")
 
         # Ask the task factory for new task
-        new_tasks, no_new_tasks = task_factory.produce_tasks(timestep=timestep)
+        new_tasks, no_new_tasks = task_factory.produce_tasks(agents, timestep=timestep)
         # Add them to the existing list
         open_tasks.add_tasks(new_tasks)
 

@@ -107,22 +107,24 @@ class CBSSolver:
 
     def pick_idle_goals(self, map_instance, agent_list: typing.List[Agent]):
         n_agents = len(agent_list)
+        idle_agents = []
+        for agent in agent_list:
+            if agent["goal"] is None:
+                idle_agents.append(agent)
         
         # Get obstacle-free map space
         free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
 
         # Partition space based on obstacle map only
-        kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
+        # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
+        kmeans = KMeans(n_clusters=len(idle_agents), random_state=0, n_init="auto").fit(free_spaces)
         idle_locs = np.rint(kmeans.cluster_centers_)
         
         # Remove agent goals from available free space
-        idle_agents = []
         for agent in agent_list:
             if agent["goal"] is not None:
                 closest_i = self.find_closest_list_index(Location(agent["goal"]), free_spaces)
                 free_spaces.pop(closest_i)
-            else:
-                idle_agents.append(agent)
 
         # Make sure rounded positions are in free space
         idle_goals = []
