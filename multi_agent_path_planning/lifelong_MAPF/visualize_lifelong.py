@@ -295,12 +295,12 @@ class Animation:
         while idx < len(d) and d[idx]["t"] < t:
             idx += 1
         if idx == 0:
-            return np.array([float(d[0]["x"]), float(d[0]["y"])])
+            return np.array([float(d[0]["x"]), float(d[0]["y"])]), idx
         elif idx < len(d):
             posLast = np.array([float(d[idx - 1]["x"]), float(d[idx - 1]["y"])])
             posNext = np.array([float(d[idx]["x"]), float(d[idx]["y"])])
         else:
-            return np.array([float(d[-1]["x"]), float(d[-1]["y"])])
+            return np.array([float(d[-1]["x"]), float(d[-1]["y"])]), idx
         dt = d[idx]["t"] - d[idx - 1]["t"]
         t = (t - d[idx - 1]["t"]) / dt
         pos = (posNext - posLast) * t + posLast
