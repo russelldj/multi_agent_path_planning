@@ -216,7 +216,7 @@ def singlerun_experiment_runner(
         map_instance=map_instance,
         initial_agents=initial_agents,
         task_factory=task_factory_cls(map_instance),
-        task_allocator=task_allocator_cls(),
+        task_allocator=task_allocator_cls(map_instance),
         mapf_solver=mapf_solver_cls(),
         max_timesteps=max_timesteps,
         verbose=verbose,
@@ -233,7 +233,7 @@ def singlerun_experiment_runner(
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
     map_glob="*",
-    nums_agents=list(range(2,8)),
+    nums_agents=list(range(2, 8)),
     task_factory_classes=(RandomTaskFactory,),
     task_allocator_classes=(RandomTaskAllocator,),
     mapf_solver_classes=(CBSSolver,),

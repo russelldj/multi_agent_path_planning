@@ -56,12 +56,14 @@ def main():
 
     world_map = Map(args.input)
 
-    allocator = TASK_ALLOCATOR_CLASS_DICT[args.allocator]()
+    allocator = TASK_ALLOCATOR_CLASS_DICT[args.allocator](world_map)
 
     output, metrics = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map, max_timestep=50, max_tasks=4, per_task_prob=0.3),
+        task_factory=RandomTaskFactory(
+            world_map, max_timestep=50, max_tasks=4, per_task_prob=0.3
+        ),
         task_allocator=allocator,
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),

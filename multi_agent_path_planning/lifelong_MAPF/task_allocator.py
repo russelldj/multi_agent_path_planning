@@ -1,15 +1,87 @@
 import logging
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+import typing
 
-from multi_agent_path_planning.lifelong_MAPF.datastuctures import AgentSet, TaskSet
+from multi_agent_path_planning.lifelong_MAPF.datastuctures import (
+    AgentSet,
+    TaskSet,
+    Location,
+    Agent,
+)
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from scipy.optimize import linear_sum_assignment
+
+
+def find_closest_list_index(loc: Location, list):
+    best_dist = np.inf
+    best_i = 0
+    element = loc.as_xy()
+    for i, item in enumerate(list):
+        dist = np.linalg.norm(np.array(element) - np.array(item))
+        if dist < best_dist:
+            best_i = i
+            best_dist = dist
+    return best_i
+
+
+def pick_idle_goals_kmeans(map_instance, agent_list: typing.List[Agent]):
+    idle_agents = []
+    for agent in agent_list:
+        if agent["goal"] is None:
+            idle_agents.append(agent)
+
+    # Get obstacle-free map space
+    free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+
+    # Partition space based on obstacle map only
+    # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
+    if len(idle_agents) == 0:
+        return
+
+    kmeans = KMeans(n_clusters=len(idle_agents), random_state=0, n_init="auto").fit(
+        free_spaces
+    )
+    idle_locs = np.rint(kmeans.cluster_centers_)
+
+    # Remove agent goals from available free space
+    for agent in agent_list:
+        if agent["goal"] is not None:
+            closest_i = find_closest_list_index(Location(agent["goal"]), free_spaces)
+            free_spaces.pop(closest_i)
+
+    # Make sure rounded positions are in free space
+    idle_goals = []
+    for idle_loc in idle_locs:
+        if idle_loc.tolist() not in free_spaces:
+            closest_i = find_closest_list_index(Location(idle_loc), free_spaces)
+            idle_loc = free_spaces[closest_i]
+            idle_goals.append(Location(idle_loc))
+        else:
+            idle_goals.append(Location(idle_loc))
+
+    # Assign idle agents using linear sum assignment
+    distance_matrix = np.zeros((len(idle_goals), len(idle_agents)))
+
+    if distance_matrix.size > 0:
+        for i, idle_goal in enumerate(idle_goals):
+            for j, idle_agent in enumerate(idle_agents):
+                diff = np.array(Location(idle_goal).as_ij()) - np.array(
+                    Location(idle_agent["start"]).as_ij()
+                )
+                dist = np.sum(np.abs(diff))
+                distance_matrix[i, j] = dist
+    idle_goal_inds, idle_agent_inds = linear_sum_assignment(distance_matrix)
+
+    for idle_goal_ind, idle_agent_ind in zip(idle_goal_inds, idle_agent_inds):
+        idle_agents[idle_agent_ind]["goal"] = list(idle_goals[idle_goal_ind].as_ij())
 
 
 class BaseTaskAllocator:
-    """
-    Def
-    """
+    def __init__(self, map_instance, assign_unallocated_w_kmeans=True) -> None:
+        self.map_instance = map_instance
+        self.assign_unallocated_w_kmeans = assign_unallocated_w_kmeans
 
     def allocate_tasks(self, tasks: TaskSet, agents: AgentSet) -> AgentSet:
         """
@@ -55,12 +127,18 @@ class RandomTaskAllocator(BaseTaskAllocator):
         sampled_agents = untasked_agents.get_n_random_agents(len(sampled_tasks))
         self.set_tasks(agents=sampled_agents, tasks=sampled_tasks)
 
+        if self.assign_unallocated_w_kmeans:
+            pick_idle_goals_kmeans(
+                map_instance=self.map_instance, agent_list=agents.tolist()
+            )
+
         # Return the agents which were updated by reference
         return agents
 
     @classmethod
     def get_name(cls):
         return "random"
+
 
 class LinearSumTaskAllocator(BaseTaskAllocator):
     def allocate_tasks(self, tasks: TaskSet, agents: AgentSet, vis=False) -> AgentSet:
@@ -95,6 +173,11 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
                 plt.close()
 
             self.set_tasks(agents=assigned_agents, tasks=assigned_tasks)
+
+        if self.assign_unallocated_w_kmeans:
+            pick_idle_goals_kmeans(
+                map_instance=self.map_instance, agent_list=agents.tolist()
+            )
 
         return agents
 

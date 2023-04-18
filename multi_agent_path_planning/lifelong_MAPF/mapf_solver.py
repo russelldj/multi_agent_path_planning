@@ -7,7 +7,7 @@ from multi_agent_path_planning.lifelong_MAPF.datastuctures import (
     Map,
     Path,
     Agent,
-    Location
+    Location,
 )
 from multi_agent_path_planning.lifelong_MAPF.helpers import make_map_dict_dynamic_obs
 from multi_agent_path_planning.centralized.cbs.cbs import CBS, Environment
@@ -16,6 +16,7 @@ import logging
 from copy import copy
 from sklearn.cluster import KMeans
 from scipy.optimize import linear_sum_assignment
+
 
 class BaseMAPFSolver:
     """
@@ -91,75 +92,9 @@ class CBSSolver:
     """
     Def
     """
+
     def __init__(self):
         self.idle_goals = []
-
-    def find_closest_list_index(self, loc: Location, list):
-        best_dist = np.inf
-        best_i = 0
-        element = loc.as_xy()
-        for i,item in enumerate(list):
-            dist = np.linalg.norm(np.array(element) - np.array(item))
-            if dist < best_dist:
-                best_i = i
-                best_dist = dist
-        return best_i
-
-    def pick_idle_goals(self, map_instance, agent_list: typing.List[Agent]):
-        n_agents = len(agent_list)
-        idle_agents = []
-        for agent in agent_list:
-            if agent["goal"] is None:
-                idle_agents.append(agent)
-        
-        # Get obstacle-free map space
-        free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
-
-        # Partition space based on obstacle map only
-        # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
-        if len(idle_agents) == 0:
-            return
-            
-        kmeans = KMeans(n_clusters=len(idle_agents), random_state=0, n_init="auto").fit(free_spaces)
-        idle_locs = np.rint(kmeans.cluster_centers_)
-        
-        # Remove agent goals from available free space
-        for agent in agent_list:
-            if agent["goal"] is not None:
-                closest_i = self.find_closest_list_index(Location(agent["goal"]), free_spaces)
-                free_spaces.pop(closest_i)
-
-        # Make sure rounded positions are in free space
-        idle_goals = []
-        for idle_loc in idle_locs:
-            if idle_loc.tolist() not in free_spaces:
-                closest_i = self.find_closest_list_index(Location(idle_loc), free_spaces)
-                idle_loc = free_spaces[closest_i]
-                idle_goals.append(Location(idle_loc))
-            else:
-                idle_goals.append(Location(idle_loc))
-
-        # Assign idle agents using linear sum assignment
-        distance_matrix = np.zeros((len(idle_goals), len(idle_agents)))
-
-        if distance_matrix.size > 0:
-            for i, idle_goal in enumerate(idle_goals):
-                for j, idle_agent in enumerate(idle_agents):
-                    diff = np.array(Location(idle_goal).as_ij()) - np.array(Location(idle_agent["start"]).as_ij())
-                    dist = np.sum(np.abs(diff))
-                    distance_matrix[i, j] = dist
-        idle_goal_inds, idle_agent_inds = linear_sum_assignment(distance_matrix)
-
-        for idle_goal_ind, idle_agent_ind in zip(idle_goal_inds, idle_agent_inds):
-            idle_agents[idle_agent_ind]["goal"] = list(idle_goals[idle_goal_ind].as_ij())
-
-        # Greedy by list order
-        # for agent in agents.tolist():
-        #     if agent["goal"] is None:
-        #         closest_i = self.find_closest_list_index(agent["start"], idle_goals)
-        #         agent["goal"] = idle_goals[closest_i]
-        #         idle_goals.pop(closest_i)
-        #print("--------------------------")
 
     def fixup_goals(self, map_instance: Map, agent_list: typing.List[Agent]):
         """Some goals may be unset, others may be duplicates
@@ -238,16 +173,16 @@ class CBSSolver:
 
         # Make sure there are no errors in the agent list
         agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
-        #for agent in agent_list:
+        # for agent in agent_list:
         #    print(agent)
-        
+
         # Create an environment and solver
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        #print("solving..")
+        # print("solving..")
         solution = cbs.search()
-        #print("solved!")
+        # print("solved!")
 
         # Set the paths for each agent
         for agent_id in solution.keys():
