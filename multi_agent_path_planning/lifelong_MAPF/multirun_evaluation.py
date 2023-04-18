@@ -241,7 +241,7 @@ def multirun_experiment_runner(
     max_timesteps=100,
     timeout_seconds=20,
     num_random_trials=3,
-    verbose=True,
+    verbose=False,
 ):
     map_files = sorted(map_folder.glob(map_glob))[:n_maps]
 
@@ -295,12 +295,22 @@ def parse_args():
     parser.add_argument("--vis-versus-config", default="num_agents")
     parser.add_argument("--vis-compare-config", default="map_file")
     parser.add_argument("--vis-metric", default="runtime")
+    parser.add_argument(
+        "-log",
+        "--loglevel",
+        default="warning",
+        help="Provide logging level. Example --loglevel debug, default=warning",
+        choices=logging._nameToLevel.keys(),
+    )
+    parser.add_argument("--random-seed", type=int, help="Optional random seed")
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = parse_args()
+    np.random.seed(args.random_seed)
+    logging.basicConfig(level=args.loglevel.upper())
     if args.vis_existing_json:
         vis_from_json(
             JSON_PATH,

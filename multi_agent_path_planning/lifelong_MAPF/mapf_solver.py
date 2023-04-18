@@ -106,14 +106,19 @@ class CBSSolver:
         return best_i
 
     def pick_idle_goals(self, map_instance, agent_list: typing.List[Agent]):
-        n_agents = len(agent_list)
+
         idle_agents = []
         for agent in agent_list:
             if agent["goal"] is None:
                 idle_agents.append(agent)
+                print(f'idle: {agent}')
+            else:
+                print(f'assigned: {agent}')
+        print()
         
         # Get obstacle-free map space
-        free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+        # free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+        free_spaces = map_instance.unoccupied_inds.tolist()
 
         # Partition space based on obstacle map only
         # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
@@ -132,12 +137,13 @@ class CBSSolver:
         # Make sure rounded positions are in free space
         idle_goals = []
         for idle_loc in idle_locs:
-            if idle_loc.tolist() not in free_spaces:
-                closest_i = self.find_closest_list_index(Location(idle_loc), free_spaces)
-                idle_loc = free_spaces[closest_i]
-                idle_goals.append(Location(idle_loc))
-            else:
-                idle_goals.append(Location(idle_loc))
+            # if idle_loc.tolist() not in free_spaces:
+            closest_i = self.find_closest_list_index(Location(idle_loc), free_spaces)
+            idle_loc = free_spaces[closest_i]
+            free_spaces.pop(closest_i)
+            idle_goals.append(Location(idle_loc))
+            # else:
+            #     idle_goals.append(Location(idle_loc))
 
         # Assign idle agents using linear sum assignment
         distance_matrix = np.zeros((len(idle_goals), len(idle_agents)))
@@ -153,13 +159,6 @@ class CBSSolver:
         for idle_goal_ind, idle_agent_ind in zip(idle_goal_inds, idle_agent_inds):
             idle_agents[idle_agent_ind]["goal"] = list(idle_goals[idle_goal_ind].as_ij())
 
-        # Greedy by list order
-        # for agent in agents.tolist():
-        #     if agent["goal"] is None:
-        #         closest_i = self.find_closest_list_index(agent["start"], idle_goals)
-        #         agent["goal"] = idle_goals[closest_i]
-        #         idle_goals.pop(closest_i)
-        #print("--------------------------")
 
     def fixup_goals(self, map_instance: Map, agent_list: typing.List[Agent]):
         """Some goals may be unset, others may be duplicates
@@ -237,7 +236,7 @@ class CBSSolver:
         self.pick_idle_goals(map_instance, agent_list)
 
         # Make sure there are no errors in the agent list
-        agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
+        # agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
         #for agent in agent_list:
         #    print(agent)
         

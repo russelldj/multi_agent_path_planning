@@ -265,13 +265,13 @@ class Agent:
 
     def set_planned_path_from_plan(self, plan):
         if self.verbose:
-            logging.info(f"Updating plan by adding nodes {self.ID}")
+            logging.debug(f"Updating plan by adding nodes {self.ID}")
         temp_path = Path()
         for node in plan[self.ID][1:]:
             temp_loc = Location.from_xy((node["x"], node["y"]))
             temp_time = node["t"]
             if self.verbose:
-                logging.info(f" adding node {temp_loc} {temp_time}")
+                logging.debug(f" adding node {temp_loc} {temp_time}")
             temp_path.add_pathnode(PathNode(temp_loc, temp_time))
 
         self.planned_path = temp_path
@@ -290,22 +290,22 @@ class Agent:
     def soft_simulation_timestep_update(self):
         # if the agent has no plan is taskless
         if self.verbose:
-            logging.info(f"Dynamics for agent {self.ID}")
+            logging.debug(f"Dynamics for agent {self.ID}")
         if self.planned_path is None or len(self.planned_path) == 0:
             if self.verbose:
-                logging.info("     Agent stationary")
-                logging.info(f"     current loc {self.loc}")
+                logging.debug("     Agent stationary")
+                logging.debug(f"     current loc {self.loc}")
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
             self.log_task_id()
             self.timestep += 1
             self.idle_timesteps += 1
         else:
             if self.verbose:
-                logging.info("     Agent on the move")
-                logging.info(f"     current loc {self.loc}")
+                logging.debug("     Agent on the move")
+                logging.debug(f"     current loc {self.loc}")
             self.loc = self.planned_path.pop_pathnode().get_loc()
             if self.verbose:
-                logging.info(f"     next loc {self.loc}")
+                logging.debug(f"     next loc {self.loc}")
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
             self.log_task_id()
             self.timestep += 1
