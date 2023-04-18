@@ -52,12 +52,7 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
             free_spaces.pop(closest_i)
 
     # Make sure rounded positions are in free space
-    idle_goals = []
-    for idle_loc in idle_locs:
-        closest_i = find_closest_list_index(Location(idle_loc), free_spaces)
-        idle_loc = free_spaces[closest_i]
-        free_spaces.pop(closest_i)
-        idle_goals.append(Location(idle_loc))
+    idle_goals = [Location(loc) for loc in idle_locs]
 
     # Assign idle agents using linear sum assignment
     distance_matrix = np.zeros((len(idle_goals), len(idle_agents)))
