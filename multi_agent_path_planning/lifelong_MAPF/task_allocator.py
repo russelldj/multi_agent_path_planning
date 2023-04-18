@@ -22,6 +22,10 @@ class BaseTaskAllocator:
         """
         return agents
 
+    @classmethod
+    def get_name(cls):
+        return "base"
+
     def set_tasks(self, agents, tasks):
         # Assign each agent a task
         for agent, task in zip(agents, tasks):
@@ -54,6 +58,9 @@ class RandomTaskAllocator(BaseTaskAllocator):
         # Return the agents which were updated by reference
         return agents
 
+    @classmethod
+    def get_name(cls):
+        return "random"
 
 class LinearSumTaskAllocator(BaseTaskAllocator):
     def allocate_tasks(self, tasks: TaskSet, agents: AgentSet, vis=False) -> AgentSet:
