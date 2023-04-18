@@ -23,7 +23,12 @@ from multi_agent_path_planning.lifelong_MAPF.lifelong_MAPF import (
     lifelong_MAPF_experiment,
 )
 from multi_agent_path_planning.lifelong_MAPF.mapf_solver import CBSSolver
-from multi_agent_path_planning.lifelong_MAPF.task_allocator import RandomTaskAllocator
+from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
+    RandomTaskAllocator,
+    LinearSumTaskAllocator,
+    RandomTaskKmeansAllocator,
+    LinearSumTaskKmeansAllocator,
+)
 from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
 JSON_PATH = Path(VIS_DIR, "results.json")
@@ -233,11 +238,16 @@ def singlerun_experiment_runner(
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
     map_glob="*",
-    nums_agents=list(range(2, 8)),
+    nums_agents=list(range(2, 5)),
     task_factory_classes=(RandomTaskFactory,),
-    task_allocator_classes=(RandomTaskAllocator,),
+    task_allocator_classes=(
+        RandomTaskAllocator,
+        LinearSumTaskAllocator,
+        RandomTaskKmeansAllocator,
+        LinearSumTaskKmeansAllocator,
+    ),
     mapf_solver_classes=(CBSSolver,),
-    n_maps=4,
+    n_maps=1,
     max_timesteps=100,
     timeout_seconds=20,
     num_random_trials=3,
@@ -293,7 +303,7 @@ def parse_args():
     parser.add_argument("--vis-existing-json", action="store_true")
     parser.add_argument("--vis-breakup-config", default="mapf_solver_cls")
     parser.add_argument("--vis-versus-config", default="num_agents")
-    parser.add_argument("--vis-compare-config", default="map_file")
+    parser.add_argument("--vis-compare-config", default="task_allocator_cls")
     parser.add_argument("--vis-metric", default="runtime")
     args = parser.parse_args()
     return args

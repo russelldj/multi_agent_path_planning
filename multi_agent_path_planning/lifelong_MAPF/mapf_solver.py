@@ -116,14 +116,15 @@ class CBSSolver:
         # what the solver is going to take
         freespace_locs_xy = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
 
-        # This is going to be filled out
-        final_goals = copy(initial_goals)
         # We randomize the allocation order to avoid bias
         permutation = np.random.permutation(len(initial_goals))
         # Run through the goals and make sure each one is uniuqe
         for i in permutation:
             initial_goal = initial_goals[i]
-            ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
+            if initial_goal is None:
+                ind = np.random.choice(len(freespace_locs_xy))
+            else:
+                ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
             updated_goal = freespace_locs_xy.pop(ind)
             # Set goal
             agent_list[i]["goal"] = updated_goal
@@ -156,9 +157,9 @@ class CBSSolver:
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        print("solving..")
+        # print("solving..")
         solution = cbs.search()
-        print("solved!")
+        # print("solved!")
 
         # Set the paths for each agent
         for agent_id in solution.keys():

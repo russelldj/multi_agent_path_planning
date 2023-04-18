@@ -26,6 +26,13 @@ def find_closest_list_index(loc: Location, list):
     return best_i
 
 
+def pick_idle_goals_current_loc(agents: AgentSet):
+    pass
+    # for agent in agents.tolist():
+    #    if agent.goal is None:
+    #        agent.goal = agent.loc
+
+
 def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
     idle_agents = []
     for agent in agents.tolist():
@@ -74,7 +81,7 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
 
 
 class BaseTaskAllocator:
-    def __init__(self, map_instance, assign_unallocated_w_kmeans=True) -> None:
+    def __init__(self, map_instance, assign_unallocated_w_kmeans=False) -> None:
         self.map_instance = map_instance
         self.assign_unallocated_w_kmeans = assign_unallocated_w_kmeans
 
@@ -124,6 +131,8 @@ class RandomTaskAllocator(BaseTaskAllocator):
 
         if self.assign_unallocated_w_kmeans:
             pick_idle_goals_kmeans(map_instance=self.map_instance, agents=agents)
+        else:
+            pick_idle_goals_current_loc(agents=agents)
 
         # Return the agents which were updated by reference
         return agents
@@ -169,12 +178,38 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
 
         if self.assign_unallocated_w_kmeans:
             pick_idle_goals_kmeans(map_instance=self.map_instance, agents=agents)
+        else:
+            pick_idle_goals_current_loc(agents=agents)
 
         return agents
+
+    @classmethod
+    def get_name(cls):
+        return "linear_sum"
+
+
+class RandomTaskKmeansAllocator(RandomTaskAllocator):
+    def __init__(self, map_instance, assign_unallocated_w_kmeans=True) -> None:
+        super().__init__(map_instance, assign_unallocated_w_kmeans)
+
+    @classmethod
+    def get_name(cls):
+        return "random_kmeans"
+
+
+class LinearSumTaskKmeansAllocator(LinearSumTaskAllocator):
+    def __init__(self, map_instance, assign_unallocated_w_kmeans=True) -> None:
+        super().__init__(map_instance, assign_unallocated_w_kmeans)
+
+    @classmethod
+    def get_name(cls):
+        return "linear_sum_kmeans"
 
 
 TASK_ALLOCATOR_CLASS_DICT = {
     "random": RandomTaskAllocator,
     "linear_sum": LinearSumTaskAllocator,
+    "random_kmeans": RandomTaskKmeansAllocator,
+    "linear_sum_kmeans": LinearSumTaskKmeansAllocator,
 }
 
