@@ -41,7 +41,7 @@ def parse_args():
         help="Provide logging level. Example --loglevel debug, default=warning",
         choices=logging._nameToLevel.keys(),
     )
-    parser.add_argument("--random-seed", help="Optional random seed")
+    parser.add_argument("--random-seed", type=int, help="Optional random seed")
 
     args = parser.parse_args()
     return args
@@ -49,7 +49,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    np.random.seed(int(args.random_seed))
+    np.random.seed(args.random_seed)
     logging.basicConfig(level=args.loglevel.upper())
 
     logging.info(args.input)

@@ -117,6 +117,9 @@ class CBSSolver:
 
         # Partition space based on obstacle map only
         # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
+        if len(idle_agents) == 0:
+            return
+            
         kmeans = KMeans(n_clusters=len(idle_agents), random_state=0, n_init="auto").fit(free_spaces)
         idle_locs = np.rint(kmeans.cluster_centers_)
         

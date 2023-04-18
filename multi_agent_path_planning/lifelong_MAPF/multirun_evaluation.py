@@ -311,3 +311,10 @@ if __name__ == "__main__":
         )
     else:
         multirun_experiment_runner()
+        vis_from_json(
+            JSON_PATH,
+            breakup_config=args.vis_breakup_config,
+            compare_config=args.vis_compare_config,
+            versus_config=args.vis_versus_config,
+            vis_metric=args.vis_metric,
+        )
