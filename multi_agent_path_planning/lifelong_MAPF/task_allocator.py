@@ -17,7 +17,7 @@ from scipy.optimize import linear_sum_assignment
 def find_closest_list_index(loc: Location, list):
     best_dist = np.inf
     best_i = 0
-    element = loc.as_xy()
+    element = loc.as_ij()
     for i, item in enumerate(list):
         dist = np.linalg.norm(np.array(element) - np.array(item))
         if dist < best_dist:
@@ -26,14 +26,14 @@ def find_closest_list_index(loc: Location, list):
     return best_i
 
 
-def pick_idle_goals_kmeans(map_instance, agent_list: typing.List[Agent]):
+def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
     idle_agents = []
-    for agent in agent_list:
-        if agent["goal"] is None:
+    for agent in agents.tolist():
+        if agent.goal is None:
             idle_agents.append(agent)
 
     # Get obstacle-free map space
-    free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+    free_spaces = map_instance.unoccupied_inds.tolist()
 
     # Partition space based on obstacle map only
     # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
@@ -46,9 +46,9 @@ def pick_idle_goals_kmeans(map_instance, agent_list: typing.List[Agent]):
     idle_locs = np.rint(kmeans.cluster_centers_)
 
     # Remove agent goals from available free space
-    for agent in agent_list:
-        if agent["goal"] is not None:
-            closest_i = find_closest_list_index(Location(agent["goal"]), free_spaces)
+    for agent in agents.tolist():
+        if agent.goal is not None:
+            closest_i = find_closest_list_index(Location(agent.goal), free_spaces)
             free_spaces.pop(closest_i)
 
     # Make sure rounded positions are in free space
@@ -68,14 +68,16 @@ def pick_idle_goals_kmeans(map_instance, agent_list: typing.List[Agent]):
         for i, idle_goal in enumerate(idle_goals):
             for j, idle_agent in enumerate(idle_agents):
                 diff = np.array(Location(idle_goal).as_ij()) - np.array(
-                    Location(idle_agent["start"]).as_ij()
+                    Location(idle_agent.loc).as_ij()
                 )
                 dist = np.sum(np.abs(diff))
                 distance_matrix[i, j] = dist
     idle_goal_inds, idle_agent_inds = linear_sum_assignment(distance_matrix)
 
     for idle_goal_ind, idle_agent_ind in zip(idle_goal_inds, idle_agent_inds):
-        idle_agents[idle_agent_ind]["goal"] = list(idle_goals[idle_goal_ind].as_ij())
+        idle_agent = idle_agents[idle_agent_ind]
+        idle_goal = idle_goals[idle_goal_ind]
+        idle_agent.goal = idle_goal
 
 
 class BaseTaskAllocator:
@@ -175,9 +177,7 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
             self.set_tasks(agents=assigned_agents, tasks=assigned_tasks)
 
         if self.assign_unallocated_w_kmeans:
-            pick_idle_goals_kmeans(
-                map_instance=self.map_instance, agent_list=agents.tolist()
-            )
+            pick_idle_goals_kmeans(map_instance=self.map_instance, agents=agents)
 
         return agents
 

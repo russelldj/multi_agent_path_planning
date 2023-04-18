@@ -168,21 +168,21 @@ class CBSSolver:
         agent_list = agents.get_agent_dict()
         obstacles = map_instance.get_obstacles()
 
-        # Select idle goals
-        self.pick_idle_goals(map_instance, agent_list)
-
         # Make sure there are no errors in the agent list
+        for agent in agent_list:
+            print(agent)
         agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
-        # for agent in agent_list:
-        #    print(agent)
+        for agent in agent_list:
+            print(agent)
+        print(obstacles)
 
         # Create an environment and solver
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        # print("solving..")
+        print("solving..")
         solution = cbs.search()
-        # print("solved!")
+        print("solved!")
 
         # Set the paths for each agent
         for agent_id in solution.keys():
