@@ -213,9 +213,11 @@ class Agent:
         self.task = task
         self.planned_path = None
         self.executed_path = Path()
+        self.task_ids = []
         self.n_completed_task = 0
         self.idle_timesteps = 0
         self.executed_path.add_pathnode(PathNode(self.loc, 0))
+        self.log_task_id()
         self.timestep = 1
         self.verbose = verbose
 
@@ -279,6 +281,12 @@ class Agent:
             self.planned_path is None or len(self.planned_path) == 0
         )
 
+    def log_task_id(self):
+        if self.task is not None:
+            self.task_ids.append(self.task.task_id)
+        else:
+            self.task_ids.append(None)
+
     def soft_simulation_timestep_update(self):
         # if the agent has no plan is taskless
         if self.verbose:
@@ -288,6 +296,7 @@ class Agent:
                 logging.info("     Agent stationary")
                 logging.info(f"     current loc {self.loc}")
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
+            self.log_task_id()
             self.timestep += 1
             self.idle_timesteps += 1
         else:
@@ -298,6 +307,7 @@ class Agent:
             if self.verbose:
                 logging.info(f"     next loc {self.loc}")
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
+            self.log_task_id()
             self.timestep += 1
             # if path is exausted (goal reached)
             if len(self.planned_path.pathnodes) == 0:
@@ -330,11 +340,12 @@ class AgentSet:
             temp_id = agent.get_id()
             temp_list = []
 
-            for path_node in agent.get_executed_path().get_path():
+            for i,path_node in enumerate(agent.get_executed_path().get_path()):
                 temp = {}
                 temp["x"] = path_node.get_loc().x()
                 temp["y"] = path_node.get_loc().y()
                 temp["t"] = path_node.get_time()
+                temp["task_id"] = agent.task_ids[i]
                 temp_list.append(temp)
             schedule[temp_id] = temp_list
 

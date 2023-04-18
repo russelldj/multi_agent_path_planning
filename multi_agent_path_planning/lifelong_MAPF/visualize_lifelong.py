@@ -13,7 +13,7 @@ from matplotlib.collections import PatchCollection
 # matplotlib.use("Agg")
 from matplotlib.patches import Arrow, Circle, Rectangle
 
-Colors = ["orange", "blue", "green"]
+Colors = ["orange", "blue", "green", "lightgrey"] # agent assigned, task start, task goal, agent idle
 
 class Animation:
     def __init__(self, map, output):
@@ -155,7 +155,7 @@ class Animation:
             self.patches.append(self.agents[name])
             self.T = max(self.T, output["schedule"][name][-1]["t"])
             self.agent_names[name] = self.ax.text(
-                d["start"][0], d["start"][1], name.replace("agent", "")
+                d["start"][0], d["start"][1], name.replace("agent", ""), fontsize=6, fontweight='bold'
             )
             self.agent_names[name].set_horizontalalignment("center")
             self.agent_names[name].set_verticalalignment("center")
@@ -255,15 +255,25 @@ class Animation:
                         self.open_start_ids[id].set_alpha(0.0)
                         self.open_goal_ids[id].set_alpha(0.0)
 
+        # Agents
         for agent_name, agent in self.combined_output.items():
-            pos = self.getState(i / 10, agent)
+            pos, idx = self.getState(i / 10, agent)
             p = (pos[0], pos[1])
             self.agents[agent_name].center = p
             self.agent_names[agent_name].set_position(p)
+            agent_id = agent_name.replace("agent", "")
+            if agent[idx]["task_id"] is None:
+                self.agent_names[agent_name].set_text(f'A{agent_id}')
+            else:
+                task_id = agent[idx]["task_id"]
+                self.agent_names[agent_name].set_text(f'A{agent_id}-T{task_id}')
 
-        # reset all colors
-        for _, agent in self.agents.items():
-            agent.set_facecolor(agent.original_face_color)
+            # Set facecolor
+            if agent[idx]["task_id"] is not None:
+                facecolor = Colors[0]
+            else:
+                facecolor = Colors[3]
+            self.agents[agent_name].set_facecolor(facecolor)
 
         # check drive-drive collisions
         agents_array = [agent for _, agent in self.agents.items()]
@@ -294,7 +304,7 @@ class Animation:
         dt = d[idx]["t"] - d[idx - 1]["t"]
         t = (t - d[idx - 1]["t"]) / dt
         pos = (posNext - posLast) * t + posLast
-        return pos
+        return pos, idx
 
 
 if __name__ == "__main__":
