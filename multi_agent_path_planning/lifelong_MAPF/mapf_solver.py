@@ -112,46 +112,22 @@ class CBSSolver:
 
         # These are the initial goals which may be None
         initial_goals = [a["goal"] for a in agent_list]
-        # Find duplicate goals
-        unique_goals, inv, counts = np.unique(
-            [(g if g is not None else (np.inf, np.inf)) for g in initial_goals],
-            return_inverse=True,
-            return_counts=True,
-            axis=0,
-        )
-        # Iterate over unique goals
-        for i in range(len(unique_goals)):
-            # If there are duplicates
-            if counts[i] > 1:
-                # Find which inds match
-                duplicate_inds = np.where(inv == i)[0]
-                del_inds = np.random.choice(
-                    duplicate_inds, size=counts[i] - 1, replace=False
-                )
-                for del_ind in del_inds:
-                    initial_goals[del_ind] = (initial_goals[del_ind], None)
-
         # THESE LOCS ARE IN XY since they were need to be in the same convention as
         # what the solver is going to take
         freespace_locs_xy = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
-        for unique_goal in unique_goals:
-            ind = find_closest_list_index(Location(unique_goal), freespace_locs_xy)
-            freespace_locs_xy.pop(ind)
 
         # This is going to be filled out
         final_goals = copy(initial_goals)
-
         # We randomize the allocation order to avoid bias
         permutation = np.random.permutation(len(initial_goals))
-        # Run through the goals
+        # Run through the goals and make sure each one is uniuqe
         for i in permutation:
             initial_goal = initial_goals[i]
             ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
             updated_goal = freespace_locs_xy.pop(ind)
-            final_goals[i] = updated_goal
+            # Set goal
+            agent_list[i]["goal"] = updated_goal
 
-        for i, final_goal in enumerate(final_goals):
-            agent_list[i]["goal"] = final_goal
         return agent_list
 
     def solve_MAPF_instance(
@@ -174,14 +150,7 @@ class CBSSolver:
         obstacles = map_instance.get_obstacles()
 
         # Make sure there are no errors in the agent list
-        for agent in agent_list:
-            print(agent)
         agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
-        print("fixedup")
-
-        for agent in agent_list:
-            print(agent)
-        print(obstacles)
 
         # Create an environment and solver
         env = Environment(dimension, agent_list, obstacles)
