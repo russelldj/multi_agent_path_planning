@@ -58,7 +58,7 @@ def main():
 
     allocator = TASK_ALLOCATOR_CLASS_DICT[args.allocator]()
 
-    output = lifelong_MAPF_experiment(
+    output, metrics = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
         task_factory=RandomTaskFactory(world_map, max_timestep=50, max_tasks=5, per_task_prob=0.3),
