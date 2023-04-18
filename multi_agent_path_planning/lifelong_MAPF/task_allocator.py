@@ -29,7 +29,7 @@ def find_closest_list_index(loc: Location, list):
 def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
     idle_agents = []
     for agent in agents.tolist():
-        if agent.goal is None:
+        if agent.task is None:
             idle_agents.append(agent)
 
     # Get obstacle-free map space
@@ -54,12 +54,10 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
     # Make sure rounded positions are in free space
     idle_goals = []
     for idle_loc in idle_locs:
-        if idle_loc.tolist() not in free_spaces:
-            closest_i = find_closest_list_index(Location(idle_loc), free_spaces)
-            idle_loc = free_spaces[closest_i]
-            idle_goals.append(Location(idle_loc))
-        else:
-            idle_goals.append(Location(idle_loc))
+        closest_i = find_closest_list_index(Location(idle_loc), free_spaces)
+        idle_loc = free_spaces[closest_i]
+        free_spaces.pop(closest_i)
+        idle_goals.append(Location(idle_loc))
 
     # Assign idle agents using linear sum assignment
     distance_matrix = np.zeros((len(idle_goals), len(idle_agents)))
@@ -130,9 +128,7 @@ class RandomTaskAllocator(BaseTaskAllocator):
         self.set_tasks(agents=sampled_agents, tasks=sampled_tasks)
 
         if self.assign_unallocated_w_kmeans:
-            pick_idle_goals_kmeans(
-                map_instance=self.map_instance, agent_list=agents.tolist()
-            )
+            pick_idle_goals_kmeans(map_instance=self.map_instance, agents=agents)
 
         # Return the agents which were updated by reference
         return agents
