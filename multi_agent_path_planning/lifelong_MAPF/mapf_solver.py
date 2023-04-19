@@ -97,7 +97,7 @@ class CBSSolver:
     def find_closest_list_index(self, loc: Location, list):
         best_dist = np.inf
         best_i = 0
-        element = loc.as_xy()
+        element = loc.as_ij()
         for i,item in enumerate(list):
             dist = np.linalg.norm(np.array(element) - np.array(item))
             if dist < best_dist:
@@ -111,14 +111,14 @@ class CBSSolver:
         for agent in agent_list:
             if agent["goal"] is None:
                 idle_agents.append(agent)
-                print(f'idle: {agent}')
+                print(f'idle:     {agent}')
             else:
                 print(f'assigned: {agent}')
         print()
         
         # Get obstacle-free map space
-        # free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
-        free_spaces = map_instance.unoccupied_inds.tolist()
+        free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+        # free_spaces = map_instance.unoccupied_inds.tolist()
 
         # Partition space based on obstacle map only
         # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
@@ -132,7 +132,11 @@ class CBSSolver:
         for agent in agent_list:
             if agent["goal"] is not None:
                 closest_i = self.find_closest_list_index(Location(agent["goal"]), free_spaces)
+                print("closest", free_spaces[closest_i])
                 free_spaces.pop(closest_i)
+        print("FREE SPACES")
+        for free_space in free_spaces:
+            print(free_space)
 
         # Make sure rounded positions are in free space
         idle_goals = []
@@ -237,8 +241,12 @@ class CBSSolver:
 
         # Make sure there are no errors in the agent list
         # agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
-        #for agent in agent_list:
-        #    print(agent)
+        print("AGENTS")
+        for agent in agent_list:
+           print(agent)
+        print("OBSTACLES")  
+        for obs in map_instance.obstacles:
+            print(obs)
         
         # Create an environment and solver
         env = Environment(dimension, agent_list, obstacles)
