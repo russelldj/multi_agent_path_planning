@@ -33,7 +33,7 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
             idle_agents.append(agent)
 
     # Get obstacle-free map space
-    free_spaces = map_instance.unoccupied_inds.tolist()
+    free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
 
     # Partition space based on obstacle map only
     # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
