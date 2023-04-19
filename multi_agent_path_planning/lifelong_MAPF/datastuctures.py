@@ -254,14 +254,15 @@ class Agent:
         # {'start': [0, 0], 'goal': [2, 0], 'name': 'agent0'}
         return {
             "start": list(self.loc.as_xy()),
-            "goal": list(self.goal.as_xy())
+            "goal": list(self.goal.as_xy()),
+            "task": self.task
             if self.goal is not None
             else None,  # There is no goal set
             "name": str(self.ID)
         }
 
     def is_allocated(self):
-        return self.goal is not None
+        return self.task is not None
 
     def set_planned_path_from_plan(self, plan):
         if self.verbose:

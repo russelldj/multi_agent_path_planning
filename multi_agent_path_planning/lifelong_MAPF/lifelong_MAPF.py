@@ -32,7 +32,7 @@ def parse_args():
         "--allocator",
         choices=TASK_ALLOCATOR_CLASS_DICT.keys(),
         help="which allocator to use",
-        default="random",
+        default="random_random",
     )
     parser.add_argument(
         "-log",
@@ -62,7 +62,7 @@ def main():
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
         task_factory=RandomTaskFactory(
-            world_map, max_timestep=50, max_tasks=4, per_task_prob=0.3
+            world_map, max_timestep=30, max_tasks=2, per_task_prob=0.3
         ),
         task_allocator=allocator,
         mapf_solver=CBSSolver(),
@@ -127,6 +127,9 @@ def lifelong_MAPF_experiment(
 
         # Assign the open tasks to the open agents
         agents = task_allocator.allocate_tasks(open_tasks, agents)
+        print("UPDATED")
+        for agent in agents.tolist():
+            print(agent.goal)
 
         # Save active tasks
         for agent in agents.agents:

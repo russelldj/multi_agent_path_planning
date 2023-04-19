@@ -19,6 +19,7 @@ import logging
 from copy import copy
 from sklearn.cluster import KMeans
 from scipy.optimize import linear_sum_assignment
+import random
 
 
 class BaseMAPFSolver:
@@ -115,16 +116,20 @@ class CBSSolver:
         # THESE LOCS ARE IN XY since they were need to be in the same convention as
         # what the solver is going to take
         freespace_locs_xy = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+        # freespace_locs_xy = map_instance.unoccupied_inds.tolist()
 
         # We randomize the allocation order to avoid bias
         permutation = np.random.permutation(len(initial_goals))
         # Run through the goals and make sure each one is uniuqe
         for i in permutation:
             initial_goal = initial_goals[i]
+            # Pick randomly if there is no goal yet
             if initial_goal is None:
-                ind = np.random.choice(len(freespace_locs_xy))
+                initial_goal = random.choice(freespace_locs_xy)
+                print(f'random initial goal: {initial_goal}')
             else:
-                ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
+                print(f'existing initial goal: {initial_goal}')
+            ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
             updated_goal = freespace_locs_xy.pop(ind)
             # Set goal
             agent_list[i]["goal"] = updated_goal
@@ -157,7 +162,13 @@ class CBSSolver:
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        # print("solving..")
+        print("AGENTS")
+        for agent in agent_list:
+            print(agent)
+        print("OBSTACLES")
+        for obs in map_instance.obstacles:
+            print(obs)
+        print("solving..")
         solution = cbs.search()
         # print("solved!")
 

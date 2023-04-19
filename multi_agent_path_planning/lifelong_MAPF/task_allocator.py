@@ -12,6 +12,7 @@ from multi_agent_path_planning.lifelong_MAPF.datastuctures import (
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from scipy.optimize import linear_sum_assignment
+import random
 
 
 def find_closest_list_index(loc: Location, list):
@@ -27,10 +28,16 @@ def find_closest_list_index(loc: Location, list):
 
 
 def pick_idle_goals_current_loc(agents: AgentSet):
-    pass
-    # for agent in agents.tolist():
-    #    if agent.goal is None:
-    #        agent.goal = agent.loc
+    for agent in agents.tolist():
+       if agent.goal is None:
+           agent.goal = agent.loc
+
+def pick_idle_goals_random_loc(map_instance, agents: AgentSet):
+    for agent in agents.tolist():
+       print(agent.goal)
+       if agent.goal is None:
+           agent.goal = Location(random.choice(map_instance.unoccupied_inds))
+           print("new", agent.goal)
 
 
 def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
@@ -40,10 +47,9 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
             idle_agents.append(agent)
 
     # Get obstacle-free map space
-    free_spaces = map_instance.unoccupied_inds.tolist()
+    free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
 
     # Partition space based on obstacle map only
-    # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
     if len(idle_agents) == 0:
         return
 
@@ -81,9 +87,9 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
 
 
 class BaseTaskAllocator:
-    def __init__(self, map_instance, assign_unallocated_w_kmeans=False) -> None:
+    def __init__(self, map_instance, pick_idle_goals_flag="random") -> None:
         self.map_instance = map_instance
-        self.assign_unallocated_w_kmeans = assign_unallocated_w_kmeans
+        self.pick_idle_goals_flag = pick_idle_goals_flag
 
     def allocate_tasks(self, tasks: TaskSet, agents: AgentSet) -> AgentSet:
         """
@@ -106,6 +112,15 @@ class BaseTaskAllocator:
             # TODO: make this more elegent, we dont want to assign tasks where the agent is on top of the start, unless we rework some of the initilization stuff, it creates issues with the planner which assumes there is a path required
             logging.info(f"Agent : {agent.get_id()} has been allocated a task!")
             agent.set_task(task)
+    
+    def pick_idle_goals(self, agents):
+        if self.pick_idle_goals_flag == "kmeans":
+            pick_idle_goals_kmeans(self.map_instance, agents)
+        elif self.pick_idle_goals_flag == "current":
+            pick_idle_goals_current_loc(agents=agents)
+        else:
+            # Default is random
+            pick_idle_goals_random_loc(self.map_instance, agents)
 
 
 class RandomTaskAllocator(BaseTaskAllocator):
@@ -129,17 +144,15 @@ class RandomTaskAllocator(BaseTaskAllocator):
         sampled_agents = untasked_agents.get_n_random_agents(len(sampled_tasks))
         self.set_tasks(agents=sampled_agents, tasks=sampled_tasks)
 
-        if self.assign_unallocated_w_kmeans:
-            pick_idle_goals_kmeans(map_instance=self.map_instance, agents=agents)
-        else:
-            pick_idle_goals_current_loc(agents=agents)
+        # Set idle goals
+        self.pick_idle_goals(agents)
 
         # Return the agents which were updated by reference
         return agents
 
     @classmethod
     def get_name(cls):
-        return "random"
+        return "random_random"
 
 
 class LinearSumTaskAllocator(BaseTaskAllocator):
@@ -148,6 +161,9 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
         untasked_agents = agents.get_unallocated_agents()
         task_list = tasks.task_list()
         distance_matrix = np.zeros((len(tasks), len(untasked_agents)))
+        print(untasked_agents, task_list, distance_matrix.size)
+        for agent in agents.tolist():
+            print(agent)
 
         if distance_matrix.size > 0:
             for i, task in enumerate(task_list):
@@ -176,40 +192,56 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
 
             self.set_tasks(agents=assigned_agents, tasks=assigned_tasks)
 
-        if self.assign_unallocated_w_kmeans:
-            pick_idle_goals_kmeans(map_instance=self.map_instance, agents=agents)
-        else:
-            pick_idle_goals_current_loc(agents=agents)
+        # Set idle goals
+        self.pick_idle_goals(agents)
 
         return agents
 
     @classmethod
     def get_name(cls):
-        return "linear_sum"
+        return "linear_sum_random"
 
 
-class RandomTaskKmeansAllocator(RandomTaskAllocator):
-    def __init__(self, map_instance, assign_unallocated_w_kmeans=True) -> None:
-        super().__init__(map_instance, assign_unallocated_w_kmeans)
+
+class RandomTaskAllocator_IdleKmeans(RandomTaskAllocator):
+    def __init__(self, map_instance, pick_idle_goals_flag="kmeans") -> None:
+        super().__init__(map_instance, pick_idle_goals_flag)
 
     @classmethod
     def get_name(cls):
         return "random_kmeans"
 
+class RandomTaskAllocator_IdleCurrent(RandomTaskAllocator):
+    def __init__(self, map_instance, pick_idle_goals_flag="current") -> None:
+        super().__init__(map_instance, pick_idle_goals_flag)
 
-class LinearSumTaskKmeansAllocator(LinearSumTaskAllocator):
-    def __init__(self, map_instance, assign_unallocated_w_kmeans=True) -> None:
-        super().__init__(map_instance, assign_unallocated_w_kmeans)
+    @classmethod
+    def get_name(cls):
+        return "random_current"
+    
+class LinearSumAllocator_IdleKmeans(LinearSumTaskAllocator):
+    def __init__(self, map_instance, pick_idle_goals_flag="kmeans") -> None:
+        super().__init__(map_instance, pick_idle_goals_flag)
 
     @classmethod
     def get_name(cls):
         return "linear_sum_kmeans"
+    
+class LinearSumAllocator_IdleCurrent(LinearSumTaskAllocator):
+    def __init__(self, map_instance, pick_idle_goals_flag="current") -> None:
+        super().__init__(map_instance, pick_idle_goals_flag)
+
+    @classmethod
+    def get_name(cls):
+        return "linear_sum_current"
 
 
 TASK_ALLOCATOR_CLASS_DICT = {
-    "random": RandomTaskAllocator,
-    "linear_sum": LinearSumTaskAllocator,
-    "random_kmeans": RandomTaskKmeansAllocator,
-    "linear_sum_kmeans": LinearSumTaskKmeansAllocator,
+    "random_random": RandomTaskAllocator,
+    "random_kmeans": RandomTaskAllocator_IdleKmeans,
+    "random_current": RandomTaskAllocator_IdleCurrent,
+    "linear_sum_random": LinearSumTaskAllocator,
+    "linear_sum_kmeans": LinearSumAllocator_IdleKmeans,
+    "linear_sum_current": LinearSumAllocator_IdleCurrent,
 }
 
