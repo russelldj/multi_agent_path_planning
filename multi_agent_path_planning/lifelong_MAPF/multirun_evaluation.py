@@ -26,8 +26,10 @@ from multi_agent_path_planning.lifelong_MAPF.mapf_solver import CBSSolver
 from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
     RandomTaskAllocator,
     LinearSumTaskAllocator,
-    RandomTaskKmeansAllocator,
-    LinearSumTaskKmeansAllocator,
+    RandomTaskAllocator_IdleKmeans,
+    RandomTaskAllocator_IdleCurrent,
+    LinearSumAllocator_IdleKmeans,
+    LinearSumAllocator_IdleCurrent,
 )
 from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
@@ -121,6 +123,9 @@ def plot_one_data(data, compare_config, versus_config, vis_metric, plot_title):
         axs[0].set_ylabel(f"Metric: {vis_metric}")
         axs[1].set_ylabel(f"Fraction valid")
 
+        int_x_ticks = range(int(np.floor(min(x_values))), int(np.ceil(max(x_values)))+1)
+        axs[0].set_xticks(int_x_ticks)
+        axs[1].set_xticks(int_x_ticks)
         axs[0].set_xlabel(versus_config)
         axs[1].set_xlabel(versus_config)
 
@@ -238,18 +243,20 @@ def singlerun_experiment_runner(
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
     map_glob="*",
-    nums_agents=list(range(2, 5)),
+    nums_agents=list([2,5,10]),
     task_factory_classes=(RandomTaskFactory,),
     task_allocator_classes=(
         RandomTaskAllocator,
+        RandomTaskAllocator_IdleKmeans,
+        RandomTaskAllocator_IdleCurrent,
         LinearSumTaskAllocator,
-        RandomTaskKmeansAllocator,
-        LinearSumTaskKmeansAllocator,
+        LinearSumAllocator_IdleKmeans,
+        LinearSumAllocator_IdleCurrent,
     ),
     mapf_solver_classes=(CBSSolver,),
     n_maps=1,
     max_timesteps=100,
-    timeout_seconds=20,
+    timeout_seconds=5,
     num_random_trials=3,
     verbose=True,
 ):
@@ -304,7 +311,7 @@ def parse_args():
     parser.add_argument("--vis-breakup-config", default="mapf_solver_cls")
     parser.add_argument("--vis-versus-config", default="num_agents")
     parser.add_argument("--vis-compare-config", default="task_allocator_cls")
-    parser.add_argument("--vis-metric", default="runtime")
+    parser.add_argument("--vis-metric", default="runtime", help="Choose from: runtime, pathlength, n_completed_tasks, idle_timesteps")
     args = parser.parse_args()
     return args
 

@@ -34,10 +34,8 @@ def pick_idle_goals_current_loc(agents: AgentSet):
 
 def pick_idle_goals_random_loc(map_instance, agents: AgentSet):
     for agent in agents.tolist():
-       print(agent.goal)
        if agent.goal is None:
            agent.goal = Location(random.choice(map_instance.unoccupied_inds))
-           print("new", agent.goal)
 
 
 def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
@@ -161,9 +159,6 @@ class LinearSumTaskAllocator(BaseTaskAllocator):
         untasked_agents = agents.get_unallocated_agents()
         task_list = tasks.task_list()
         distance_matrix = np.zeros((len(tasks), len(untasked_agents)))
-        print(untasked_agents, task_list, distance_matrix.size)
-        for agent in agents.tolist():
-            print(agent)
 
         if distance_matrix.size > 0:
             for i, task in enumerate(task_list):

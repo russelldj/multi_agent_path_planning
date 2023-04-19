@@ -92,7 +92,7 @@ class RandomTaskFactory:
         task_list = []
         for _ in range(n_tasks):
             if self.max_tasks is not None:
-                if self.n_created_tasks >= self.max_tasks:
+                if self.n_created_tasks >= self.max_tasks or timestep <= 10:
                     break
             start, goal = self.world_map.get_random_unoccupied_locs(2)
             new_task = Task(

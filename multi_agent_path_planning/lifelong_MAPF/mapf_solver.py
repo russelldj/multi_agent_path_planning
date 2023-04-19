@@ -126,9 +126,7 @@ class CBSSolver:
             # Pick randomly if there is no goal yet
             if initial_goal is None:
                 initial_goal = random.choice(freespace_locs_xy)
-                print(f'random initial goal: {initial_goal}')
-            else:
-                print(f'existing initial goal: {initial_goal}')
+                
             ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
             updated_goal = freespace_locs_xy.pop(ind)
             # Set goal
@@ -162,15 +160,10 @@ class CBSSolver:
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        print("AGENTS")
-        for agent in agent_list:
-            print(agent)
-        print("OBSTACLES")
-        for obs in map_instance.obstacles:
-            print(obs)
-        print("solving..")
+
+        logging.info("solving..")
         solution = cbs.search()
-        # print("solved!")
+        logging.info("solved!")
 
         # Set the paths for each agent
         for agent_id in solution.keys():
