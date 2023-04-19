@@ -62,7 +62,7 @@ def main():
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
         task_factory=RandomTaskFactory(
-            world_map, max_timestep=50, max_tasks=10, per_task_prob=0.2
+            world_map, start_timestep=10, end_timestep=50, max_tasks=10, per_task_prob=0.2
         ),
         task_allocator=allocator,
         mapf_solver=CBSSolver(),
@@ -83,7 +83,7 @@ def lifelong_MAPF_experiment(
     task_allocator: BaseTaskAllocator,
     mapf_solver: BaseMAPFSolver,
     dynamics_simulator: BaseDynamicsSimulator = BaseDynamicsSimulator(),
-    max_timesteps: int = 10,
+    max_timesteps: int = 100,
     verbose: bool = False,
 ):
     """
@@ -142,6 +142,13 @@ def lifelong_MAPF_experiment(
             task_dict["t"] = timestep
             open_task_list.append(task_dict)
         output["open_tasks"] = open_task_list
+
+        print("AGENTS")
+        for agent in agents.get_agent_dict():
+            print(agent)
+        print("OBSTACLES")
+        for obs in map_instance.obstacles:
+            print(obs)
 
         # Plan all the required paths
         agents = mapf_solver.solve_MAPF_instance(

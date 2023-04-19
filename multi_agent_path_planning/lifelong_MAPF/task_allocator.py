@@ -45,7 +45,8 @@ def pick_idle_goals_kmeans(map_instance, agents: AgentSet):
             idle_agents.append(agent)
 
     # Get obstacle-free map space
-    free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+    # free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+    free_spaces = map_instance.unoccupied_inds.tolist()
 
     # Partition space based on obstacle map only
     if len(idle_agents) == 0:

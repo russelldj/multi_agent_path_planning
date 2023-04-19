@@ -34,7 +34,8 @@ class RandomTaskFactory:
         self,
         world_map: Map,
         max_tasks_per_timestep=1,
-        max_timestep: int = None,
+        start_timestep: int = None,
+        end_timestep: int = None,
         max_tasks: int = None,
         per_task_prob: float = 1,
     ) -> None:
@@ -43,13 +44,14 @@ class RandomTaskFactory:
         Args:
             world_map (Map): The map of the world
             max_tasks_per_timestep (int, optional): At most how many tasks to produce per timestep. Defaults to 1.
-            max_timestep (_type_, optional): The timestep to stop producing tasks at. Defaults to None.
+            end_timestep (_type_, optional): The timestep to stop producing tasks at. Defaults to None.
             max_tasks: maximum number of tasks to generate
             per_task_prob: the chance of each task being generated
         """
         self.world_map = world_map
         self.max_tasks_per_timestep = max_tasks_per_timestep
-        self.max_timestep = max_timestep
+        self.start_timestep = start_timestep
+        self.end_timestep = end_timestep
         self.next_task_id = 0
         self.per_task_prob = per_task_prob
         self.max_tasks = max_tasks
@@ -79,7 +81,7 @@ class RandomTaskFactory:
             tasks: A list of Tasks
             complete: Is the factory done producing tasks
         """
-        if self.max_timestep is not None and self.max_timestep < timestep:
+        if self.end_timestep is not None and self.end_timestep < timestep:
             return [], True
 
         n_tasks = np.sum(
@@ -92,7 +94,9 @@ class RandomTaskFactory:
         task_list = []
         for _ in range(n_tasks):
             if self.max_tasks is not None:
-                if self.n_created_tasks >= self.max_tasks or timestep <= 10:
+                if self.n_created_tasks >= self.max_tasks:
+                    break
+                if self.start_timestep is not None and timestep <= self.start_timestep:
                     break
             start, goal = self.world_map.get_random_unoccupied_locs(2)
             new_task = Task(
