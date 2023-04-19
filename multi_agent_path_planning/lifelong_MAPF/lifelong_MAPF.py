@@ -62,7 +62,7 @@ def main():
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
         task_factory=RandomTaskFactory(
-            world_map, max_timestep=50, max_tasks=4, per_task_prob=0.3
+            world_map, max_timestep=50, max_tasks=0, per_task_prob=0.1
         ),
         task_allocator=allocator,
         mapf_solver=CBSSolver(),
@@ -83,7 +83,7 @@ def lifelong_MAPF_experiment(
     task_allocator: BaseTaskAllocator,
     mapf_solver: BaseMAPFSolver,
     dynamics_simulator: BaseDynamicsSimulator = BaseDynamicsSimulator(),
-    max_timesteps: int = 100,
+    max_timesteps: int = 10,
     verbose: bool = False,
 ):
     """
