@@ -158,6 +158,7 @@ def lifelong_MAPF_experiment(
         agents = dynamics_simulator.step_world(
             agents=agents, timestep=timestep, verbose=verbose
         )
+        open_tasks.step_idle()
 
     # Save tasks one more time to match timestep of agents
     for agent in agents.agents:

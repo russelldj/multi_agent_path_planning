@@ -58,17 +58,15 @@ class Location:
 
 
 class Task:
-    def __init__(self, start, goal, timestep):
-        self.start = Location(start)
-        self.goal = Location(goal)
-        self.timestep = timestep
-        self.task_id = -1
-
     def __init__(self, start, goal, timestep, task_id):
         self.start = Location(start)
         self.goal = Location(goal)
         self.timestep = timestep
         self.task_id = task_id
+        self.n_steps_idle = 0
+
+    def step_idle(self):
+        self.n_steps_idle += 1
 
     def get_dict(self):
         return {
@@ -98,6 +96,9 @@ class TaskSet:
             int: the number of tasks
         """
         return len(self.task_dict)
+
+    def step_idle(self):
+        [x.step_idle() for x in self.task_dict.values()]
 
     def task_list(self):
         return list(self.task_dict.values())
@@ -215,6 +216,7 @@ class Agent:
         self.executed_path = Path()
         self.task_ids = []
         self.n_completed_task = 0
+        self.timesteps_to_start = 0
         self.idle_timesteps = 0
         self.executed_path.add_pathnode(PathNode(self.loc, 0))
         self.log_task_id()
@@ -239,6 +241,7 @@ class Agent:
     def set_task(self, task: Task):
         self.task = task
         self.goal = self.task.start
+        self.idle_timesteps = task.n_steps_idle
 
     def get_executed_path(self):
         return self.executed_path
@@ -258,7 +261,7 @@ class Agent:
             "task": self.task
             if self.goal is not None
             else None,  # There is no goal set
-            "name": str(self.ID)
+            "name": str(self.ID),
         }
 
     def is_allocated(self):
@@ -341,7 +344,7 @@ class AgentSet:
             temp_id = agent.get_id()
             temp_list = []
 
-            for i,path_node in enumerate(agent.get_executed_path().get_path()):
+            for i, path_node in enumerate(agent.get_executed_path().get_path()):
                 temp = {}
                 temp["x"] = path_node.get_loc().x()
                 temp["y"] = path_node.get_loc().y()
@@ -418,7 +421,6 @@ class AgentSet:
             plt.legend()
             plt.show()
         return all_metrics
-
 
 
 class Map:

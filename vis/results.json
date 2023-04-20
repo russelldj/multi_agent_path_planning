@@ -1,1 +1,0 @@
-{"('map_8by8_obst12_agents1_ex10.yaml', 10, 'random', 'linear_sum_random', 'base')": [null], "('map_8by8_obst12_agents1_ex10.yaml', 2, 'random', 'linear_sum_current', 'base')": [{"pathlength": [61, 36], "n_completed_tasks": [6, 4], "idle_timesteps": [39, 64], "runtime": 0.2557339668273926}]}
