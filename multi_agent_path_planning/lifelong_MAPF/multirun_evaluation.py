@@ -38,7 +38,7 @@ JSON_PATH = Path(VIS_DIR, "results.json")
 NAMES_TO_INDS = {
     "map_file": 0,
     "num_agents": 1,
-    "task_factory_cls": 2,
+    "task_factory_func": 2,
     "task_allocator_cls": 3,
     "mapf_solver_cls": 4,
 }
@@ -48,7 +48,7 @@ def make_key_tuple_from_config_dict(config_dict):
     key_tuple = (
         config_dict["map_file"].name,
         config_dict["num_agents"],
-        config_dict["task_factory_cls"].get_name(),
+        str(config_dict["task_factory_func"]),
         config_dict["task_allocator_cls"].get_name(),
         config_dict["mapf_solver_cls"].get_name(),
     )
@@ -208,7 +208,7 @@ def create_n_random_agents_in_freespace(map_instance: Map, n_agents):
 def singlerun_experiment_runner(
     map_file,
     num_agents,
-    task_factory_cls=RandomTaskFactory,
+    task_factory_func=RandomTaskFactory,
     task_allocator_cls=RandomTaskAllocator,
     mapf_solver_cls=CBSSolver,
     max_timesteps=100,
@@ -227,7 +227,7 @@ def singlerun_experiment_runner(
     (is_done, is_timeout, error_message, results) = lifelong_MAPF_experiment_w_timeout(
         map_instance=map_instance,
         initial_agents=initial_agents,
-        task_factory=task_factory_cls(map_instance),
+        task_factory=task_factory_func(map_instance),
         task_allocator=task_allocator_cls(map_instance),
         mapf_solver=mapf_solver_cls(),
         max_timesteps=max_timesteps,
@@ -243,10 +243,14 @@ def singlerun_experiment_runner(
 
 
 def multirun_experiment_runner(
-    map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
+    map_folder=Path(BENCHMARK_DIR, "custom"),
     map_glob="*",
     nums_agents=list([2, 5, 10]),
-    task_factory_classes=(RandomTaskFactory,),
+    task_factory_funcs=(
+        lambda map_instance: RandomTaskFactory(
+            map_instance, max_tasks_per_timestep=1, per_task_prob=0.1
+        ),
+    ),
     task_allocator_classes=(
         RandomTaskAllocator,
         RandomTaskAllocator_IdleKmeans,
@@ -262,13 +266,13 @@ def multirun_experiment_runner(
     num_random_trials=3,
     verbose=True,
 ):
-    map_files = sorted(map_folder.glob(map_glob))[:n_maps]
+    map_files = sorted(Path(map_folder).glob(map_glob))[:n_maps]
 
     config_tuples = list(
         itertools.product(
             map_files,
             nums_agents,
-            task_factory_classes,
+            task_factory_funcs,
             task_allocator_classes,
             mapf_solver_classes,
         )
@@ -284,7 +288,7 @@ def multirun_experiment_runner(
         {
             "map_file": t[0],
             "num_agents": t[1],
-            "task_factory_cls": t[2],
+            "task_factory_func": t[2],
             "task_allocator_cls": t[3],
             "mapf_solver_cls": t[4],
         }
@@ -313,6 +317,8 @@ def parse_args():
     parser.add_argument("--vis-breakup-config", default="mapf_solver_cls")
     parser.add_argument("--vis-versus-config", default="num_agents")
     parser.add_argument("--vis-compare-config", default="task_allocator_cls")
+    parser.add_argument("--timeout-seconds", default=30, type=int)
+    parser.add_argument("--maps-folders", default=Path(BENCHMARK_DIR, "custom"))
     parser.add_argument(
         "--vis-metric",
         default="runtime",
@@ -333,7 +339,7 @@ if __name__ == "__main__":
             vis_metric=args.vis_metric,
         )
     else:
-        multirun_experiment_runner()
+        multirun_experiment_runner(timeout_seconds=args.timeout_seconds)
         vis_from_json(
             JSON_PATH,
             breakup_config=args.vis_breakup_config,
