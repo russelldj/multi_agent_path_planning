@@ -126,7 +126,7 @@ class CBSSolver:
             # Pick randomly if there is no goal yet
             if initial_goal is None:
                 initial_goal = random.choice(freespace_locs_xy)
-                
+
             ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
             updated_goal = freespace_locs_xy.pop(ind)
             # Set goal
@@ -160,6 +160,18 @@ class CBSSolver:
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
+
+        starts = [tuple(a["start"]) for a in agent_list]
+        goals = [tuple(a["goal"]) for a in agent_list]
+        logging.info(f"\nstarts: {starts},\ngoals: {goals},\nobstacles: {obstacles}")
+
+        if np.any([g in obstacles for g in goals]):
+            logging.error("Goal in obstacles")
+            breakpoint()
+
+        if len(np.unique(goals, axis=1)) != len(goals):
+            logging.error("Duplicate goals")
+            breakpoint()
 
         logging.info("solving..")
         solution = cbs.search()

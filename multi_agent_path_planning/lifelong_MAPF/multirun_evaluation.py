@@ -260,13 +260,15 @@ def multirun_experiment_runner(
         LinearSumAllocator_IdleCurrent,
     ),
     mapf_solver_classes=(CBSSolver,),
-    n_maps=5,
+    n_maps=None,
     max_timesteps=100,
     timeout_seconds=5,
     num_random_trials=3,
     verbose=True,
 ):
-    map_files = sorted(Path(map_folder).glob(map_glob))[:n_maps]
+    map_files = sorted(Path(map_folder).glob(map_glob))
+    if n_maps is not None:
+        map_files = np.random.choice(map_files, size=n_maps, replace=False)
 
     config_tuples = list(
         itertools.product(
@@ -314,15 +316,21 @@ def multirun_experiment_runner(
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vis-existing-json", action="store_true")
-    parser.add_argument("--vis-breakup-config", default="mapf_solver_cls")
+    parser.add_argument("--vis-breakup-config", default="map_file")
     parser.add_argument("--vis-versus-config", default="num_agents")
     parser.add_argument("--vis-compare-config", default="task_allocator_cls")
     parser.add_argument("--timeout-seconds", default=30, type=int)
     parser.add_argument("--maps-folders", default=Path(BENCHMARK_DIR, "custom"))
     parser.add_argument(
         "--vis-metric",
-        default="runtime",
-        choices=("runtime", "pathlength", "n_completed_tasks", "idle_timesteps"),
+        default="timesteps_to_task_start",
+        choices=(
+            "timesteps_to_task_start",
+            "runtime",
+            "pathlength",
+            "n_completed_tasks",
+            "idle_timesteps",
+        ),
     )
     args = parser.parse_args()
     return args

@@ -216,12 +216,15 @@ class Agent:
         self.executed_path = Path()
         self.task_ids = []
         self.n_completed_task = 0
-        self.timesteps_to_start = 0
+        self.timesteps_to_task_start = 0
         self.idle_timesteps = 0
         self.executed_path.add_pathnode(PathNode(self.loc, 0))
         self.log_task_id()
         self.timestep = 1
         self.verbose = verbose
+
+        self.completed_times_to_task_starts = []
+        self.task_idle_timesteps = []
 
     def __repr__(self) -> str:
         return f"ID: {self.ID}, loc: {self.loc}, TODO"
@@ -241,7 +244,7 @@ class Agent:
     def set_task(self, task: Task):
         self.task = task
         self.goal = self.task.start
-        self.idle_timesteps = task.n_steps_idle
+        self.task_idle_timesteps.append(task.n_steps_idle)
 
     def get_executed_path(self):
         return self.executed_path
@@ -251,6 +254,8 @@ class Agent:
             "pathlength": int(self.executed_path.get_len()),
             "n_completed_tasks": int(self.n_completed_task),
             "idle_timesteps": int(self.idle_timesteps),
+            "timesteps_to_task_start": self.completed_times_to_task_starts,
+            "task_idle_timesteps": self.task_idle_timesteps,
         }
 
     def get_as_dict(self):
@@ -313,6 +318,12 @@ class Agent:
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
             self.log_task_id()
             self.timestep += 1
+
+            if self.task is not None and self.goal == self.task.goal:
+                if self.timesteps_to_task_start is None:
+                    self.timesteps_to_task_start = 0
+                self.timesteps_to_task_start += 1
+
             # if path is exausted (goal reached)
             if len(self.planned_path.pathnodes) == 0:
                 # if we have hit the "start" of a "task"
@@ -320,6 +331,11 @@ class Agent:
                 if self.task is not None and self.loc == self.task.start:
                     self.goal = self.task.goal
                     self.planned_path = None
+                    if self.timesteps_to_task_start is not None:
+                        self.completed_times_to_task_starts.append(
+                            self.timesteps_to_task_start
+                        )
+                    self.timesteps_to_task_start = None
                 else:
                     self.goal = None
                     self.task = None
