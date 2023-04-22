@@ -107,6 +107,16 @@ def plot_one_data(data, compare_config, versus_config, vis_metric, plot_title):
             valid_values = [x[vis_metric] for x in valid_metrics]
             frac_valid = len(valid_metrics) / len(metrics_for_one_config)
             fracs_valid.append(frac_valid)
+            try:
+                valid_values = np.array(valid_values)
+            # Ragged array
+            except ValueError:
+                # Flatten first
+                flat_valid_values = list(
+                    itertools.chain(*[itertools.chain(*v) for v in valid_values])
+                )
+                valid_values = np.array(flat_valid_values)
+
             if len(valid_values) > 0:
                 means.append(np.mean(valid_values))
                 stds.append(np.std(valid_values))
