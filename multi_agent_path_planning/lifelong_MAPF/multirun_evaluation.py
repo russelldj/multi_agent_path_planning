@@ -245,7 +245,7 @@ def singlerun_experiment_runner(
 def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "custom"),
     map_glob="*",
-    nums_agents=list([2, 5, 10]),
+    nums_agents=list([2, 3, 4, 6, 8, 10]),
     task_factory_funcs=(
         lambda map_instance: RandomTaskFactory(
             map_instance, max_tasks_per_timestep=1, per_task_prob=0.1
@@ -328,8 +328,9 @@ def parse_args():
             "timesteps_to_task_start",
             "runtime",
             "pathlength",
-            "n_completed_tasks",
-            "idle_timesteps",
+            "idle_timesteps_before_task_assignment",
+            "idle_timesteps_before_task_pickup",
+            "total_timesteps_until_task_pickup",
         ),
     )
     args = parser.parse_args()

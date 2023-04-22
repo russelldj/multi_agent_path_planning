@@ -226,8 +226,10 @@ class Agent:
         self.idle_timesteps = 0
         self.timestep = 1
 
-        self.times_to_task_starts = []  # how long it took to reach the task starts
-        self.idle_timesteps_before_task_pickup = (
+        self.logged_timesteps_to_task_start = (
+            []
+        )  # how long it took to reach the task starts
+        self.idle_timesteps_before_task_assignment = (
             []
         )  # How long each task sat idle before being picked up
 
@@ -251,20 +253,27 @@ class Agent:
     def set_task(self, task: Task):
         self.task = task
         self.goal = self.task.start
-        self.idle_timesteps_before_task_pickup.append(task.n_steps_idle)
+        self.idle_timesteps_before_task_assignment.append(task.n_steps_idle)
 
     def get_executed_path(self):
         return self.executed_path
 
     def get_metrics(self):
-        breakpoint()
-        return {
+        metrics = {
             "pathlength": int(self.executed_path.get_len()),
             "n_completed_tasks": int(self.n_completed_task),
             "idle_timesteps": int(self.idle_timesteps),
-            "timesteps_to_task_start": self.times_to_task_starts,
-            "idle_timesteps_before_task_pickup": self.idle_timesteps_before_task_pickup,
+            "timesteps_to_task_start": self.logged_timesteps_to_task_start,
+            "idle_timesteps_before_task_assignment": self.idle_timesteps_before_task_assignment,
+            "total_timesteps_until_task_pickup": [
+                i + t
+                for i, t in zip(
+                    self.idle_timesteps_before_task_assignment,
+                    self.logged_timesteps_to_task_start,
+                )
+            ],
         }
+        return metrics
 
     def get_as_dict(self):
         # {'start': [0, 0], 'goal': [2, 0], 'name': 'agent0'}
@@ -353,7 +362,9 @@ class Agent:
                     self.goal = self.task.goal
                     self.planned_path = None
                     if self.timesteps_to_task_start is not None:
-                        self.times_to_task_starts.append(self.timesteps_to_task_start)
+                        self.logged_timesteps_to_task_start.append(
+                            self.timesteps_to_task_start
+                        )
                     self.timesteps_to_task_start = 0
                 # Reached a task goal
                 elif self.is_at_task_goal():
