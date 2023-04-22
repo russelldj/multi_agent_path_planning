@@ -209,22 +209,29 @@ class Agent:
             task (Task, optional): _description_. Defaults to None.
         """
         self.loc = Location(loc)
+        self.verbose = verbose
         self.ID = ID
+
         self.goal = goal
         self.task = task
+
         self.planned_path = None
         self.executed_path = Path()
+        self.executed_path.add_pathnode(PathNode(self.loc, 0))
+
         self.task_ids = []
+
         self.n_completed_task = 0
         self.timesteps_to_task_start = 0
         self.idle_timesteps = 0
-        self.executed_path.add_pathnode(PathNode(self.loc, 0))
-        self.log_task_id()
         self.timestep = 1
-        self.verbose = verbose
 
-        self.completed_times_to_task_starts = []
-        self.task_idle_timesteps = []
+        self.times_to_task_starts = []  # how long it took to reach the task starts
+        self.idle_timesteps_before_task_pickup = (
+            []
+        )  # How long each task sat idle before being picked up
+
+        self.log_task_id()
 
     def __repr__(self) -> str:
         return f"ID: {self.ID}, loc: {self.loc}, TODO"
@@ -244,18 +251,19 @@ class Agent:
     def set_task(self, task: Task):
         self.task = task
         self.goal = self.task.start
-        self.task_idle_timesteps.append(task.n_steps_idle)
+        self.idle_timesteps_before_task_pickup.append(task.n_steps_idle)
 
     def get_executed_path(self):
         return self.executed_path
 
     def get_metrics(self):
+        breakpoint()
         return {
             "pathlength": int(self.executed_path.get_len()),
             "n_completed_tasks": int(self.n_completed_task),
             "idle_timesteps": int(self.idle_timesteps),
-            "timesteps_to_task_start": self.completed_times_to_task_starts,
-            "task_idle_timesteps": self.task_idle_timesteps,
+            "timesteps_to_task_start": self.times_to_task_starts,
+            "idle_timesteps_before_task_pickup": self.idle_timesteps_before_task_pickup,
         }
 
     def get_as_dict(self):
@@ -271,6 +279,21 @@ class Agent:
 
     def is_allocated(self):
         return self.task is not None
+
+    def is_going_to_task_start(self):
+        return self.task is not None and self.goal == self.task.start
+
+    def is_going_to_task_goal(self):
+        return self.task is not None and self.goal == self.task.goal
+
+    def is_at_task_start(self):
+        return self.task is not None and self.loc == self.task.start
+
+    def is_at_task_goal(self):
+        return self.task is not None and self.loc == self.task.goal
+
+    def is_at_agent_goal(self):
+        return self.goal is not None and self.loc == self.goal
 
     def set_planned_path_from_plan(self, plan):
         if self.verbose:
@@ -319,28 +342,36 @@ class Agent:
             self.log_task_id()
             self.timestep += 1
 
-            if self.task is not None and self.goal == self.task.goal:
-                if self.timesteps_to_task_start is None:
-                    self.timesteps_to_task_start = 0
+            # Currently assigned to a task start
+            if self.is_going_to_task_start():
                 self.timesteps_to_task_start += 1
 
             # if path is exausted (goal reached)
             if len(self.planned_path.pathnodes) == 0:
-                # if we have hit the "start" of a "task"
-                # TODO make sure this first check is right
-                if self.task is not None and self.loc == self.task.start:
+                # At the start of a task
+                if self.is_at_task_start():
                     self.goal = self.task.goal
                     self.planned_path = None
                     if self.timesteps_to_task_start is not None:
-                        self.completed_times_to_task_starts.append(
-                            self.timesteps_to_task_start
-                        )
-                    self.timesteps_to_task_start = None
-                else:
+                        self.times_to_task_starts.append(self.timesteps_to_task_start)
+                    self.timesteps_to_task_start = 0
+                # Reached a task goal
+                elif self.is_at_task_goal():
                     self.goal = None
                     self.task = None
                     self.planned_path = None
                     self.n_completed_task += 1
+                # At an arbitrary (non-task) goal
+                elif self.is_at_agent_goal():
+                    self.goal = None
+                    self.planned_path = None
+                    # Do not reset the task as we may have been
+                    # redirected temporarily
+                else:
+                    # Agent must have been reassigned a nearby location in the
+                    # MAPF solver and therefore needs to be reassigned a path to get
+                    # to its goal
+                    self.planned_path = None
 
 
 class AgentSet:
