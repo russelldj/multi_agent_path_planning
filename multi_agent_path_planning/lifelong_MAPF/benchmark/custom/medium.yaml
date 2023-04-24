@@ -18,15 +18,8 @@ agents:
     name: agent5
     goal: [4,4] # unused
 map:
-    dimensions: [8, 8]
+    dimensions: [32, 32]
     obstacles:
     - !!python/tuple [1, 1]
-    - !!python/tuple [4, 2]
-    - !!python/tuple [3, 3]
-    - !!python/tuple [5, 1]
-    - !!python/tuple [2, 6]
-    - !!python/tuple [3, 0]
-    - !!python/tuple [1, 0]
-    - !!python/tuple [7, 4]
 
 dynamic_obstacles: {}

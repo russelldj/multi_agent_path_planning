@@ -7,15 +7,20 @@ from multi_agent_path_planning.lifelong_MAPF.datastuctures import (
     Map,
     Path,
     Agent,
-    Location
+    Location,
 )
 from multi_agent_path_planning.lifelong_MAPF.helpers import make_map_dict_dynamic_obs
 from multi_agent_path_planning.centralized.cbs.cbs import CBS, Environment
+from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
+    find_closest_list_index,
+)
 import numpy as np
 import logging
 from copy import copy
 from sklearn.cluster import KMeans
 from scipy.optimize import linear_sum_assignment
+import random
+
 
 class BaseMAPFSolver:
     """
@@ -91,77 +96,11 @@ class CBSSolver:
     """
     Def
     """
+
     def __init__(self):
         self.idle_goals = []
 
-    def find_closest_list_index(self, loc: Location, list):
-        best_dist = np.inf
-        best_i = 0
-        element = loc.as_xy()
-        for i,item in enumerate(list):
-            dist = np.linalg.norm(np.array(element) - np.array(item))
-            if dist < best_dist:
-                best_i = i
-                best_dist = dist
-        return best_i
-
-    def pick_idle_goals(self, map_instance, agent_list: typing.List[Agent]):
-        n_agents = len(agent_list)
-        idle_agents = []
-        for agent in agent_list:
-            if agent["goal"] is None:
-                idle_agents.append(agent)
-        
-        # Get obstacle-free map space
-        free_spaces = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
-
-        # Partition space based on obstacle map only
-        # kmeans = KMeans(n_clusters=n_agents, random_state=0, n_init="auto").fit(free_spaces)
-        if len(idle_agents) == 0:
-            return
-            
-        kmeans = KMeans(n_clusters=len(idle_agents), random_state=0, n_init="auto").fit(free_spaces)
-        idle_locs = np.rint(kmeans.cluster_centers_)
-        
-        # Remove agent goals from available free space
-        for agent in agent_list:
-            if agent["goal"] is not None:
-                closest_i = self.find_closest_list_index(Location(agent["goal"]), free_spaces)
-                free_spaces.pop(closest_i)
-
-        # Make sure rounded positions are in free space
-        idle_goals = []
-        for idle_loc in idle_locs:
-            if idle_loc.tolist() not in free_spaces:
-                closest_i = self.find_closest_list_index(Location(idle_loc), free_spaces)
-                idle_loc = free_spaces[closest_i]
-                idle_goals.append(Location(idle_loc))
-            else:
-                idle_goals.append(Location(idle_loc))
-
-        # Assign idle agents using linear sum assignment
-        distance_matrix = np.zeros((len(idle_goals), len(idle_agents)))
-
-        if distance_matrix.size > 0:
-            for i, idle_goal in enumerate(idle_goals):
-                for j, idle_agent in enumerate(idle_agents):
-                    diff = np.array(Location(idle_goal).as_ij()) - np.array(Location(idle_agent["start"]).as_ij())
-                    dist = np.sum(np.abs(diff))
-                    distance_matrix[i, j] = dist
-        idle_goal_inds, idle_agent_inds = linear_sum_assignment(distance_matrix)
-
-        for idle_goal_ind, idle_agent_ind in zip(idle_goal_inds, idle_agent_inds):
-            idle_agents[idle_agent_ind]["goal"] = list(idle_goals[idle_goal_ind].as_ij())
-
-        # Greedy by list order
-        # for agent in agents.tolist():
-        #     if agent["goal"] is None:
-        #         closest_i = self.find_closest_list_index(agent["start"], idle_goals)
-        #         agent["goal"] = idle_goals[closest_i]
-        #         idle_goals.pop(closest_i)
-        #print("--------------------------")
-
-    def fixup_goals(self, map_instance: Map, agent_list: typing.List[Agent]):
+    def fixup_goals(self, map_instance: Map, agent_list: typing.List[dict]):
         """Some goals may be unset, others may be duplicates
 
         Args:
@@ -174,44 +113,25 @@ class CBSSolver:
 
         # These are the initial goals which may be None
         initial_goals = [a["goal"] for a in agent_list]
-        # Find duplicate goals
-        unique_goals, inv, counts = np.unique(
-            [(g if g is not None else (np.inf, np.inf)) for g in initial_goals],
-            return_inverse=True,
-            return_counts=True,
-            axis=0,
-        )
-        # Iterate over unique goals
-        for i in range(len(unique_goals)):
-            # If there are duplicates
-            if counts[i] > 1:
-                # Find which inds match
-                duplicate_inds = np.where(inv == i)[0]
-                del_inds = np.random.choice(
-                    duplicate_inds, size=counts[i] - 1, replace=False
-                )
-                for del_ind in del_inds:
-                    initial_goals[del_ind] = None
-        # This is going to be filled out
-        final_goals = copy(initial_goals)
+        # THESE LOCS ARE IN XY since they were need to be in the same convention as
+        # what the solver is going to take
+        freespace_locs_xy = np.flip(map_instance.unoccupied_inds, axis=1).tolist()
+        # freespace_locs_xy = map_instance.unoccupied_inds.tolist()
+
         # We randomize the allocation order to avoid bias
         permutation = np.random.permutation(len(initial_goals))
-        # Run through the goals
+        # Run through the goals and make sure each one is uniuqe
         for i in permutation:
             initial_goal = initial_goals[i]
-            # Is this not set
+            # Pick randomly if there is no goal yet
             if initial_goal is None:
-                valid = False
-                # Randomly sample of a goal in freespace
-                while not valid:
-                    random_loc = list(
-                        map_instance.get_random_unoccupied_locs(n_samples=1)[0].as_xy()
-                    )
-                    if random_loc not in final_goals:
-                        valid = True
-                        final_goals[i] = random_loc
-        for i, final_goal in enumerate(final_goals):
-            agent_list[i]["goal"] = final_goal
+                initial_goal = random.choice(freespace_locs_xy)
+
+            ind = find_closest_list_index(Location(initial_goal), freespace_locs_xy)
+            updated_goal = freespace_locs_xy.pop(ind)
+            # Set goal
+            agent_list[i]["goal"] = updated_goal
+
         return agent_list
 
     def solve_MAPF_instance(
@@ -233,21 +153,29 @@ class CBSSolver:
         agent_list = agents.get_agent_dict()
         obstacles = map_instance.get_obstacles()
 
-        # Select idle goals
-        self.pick_idle_goals(map_instance, agent_list)
-
         # Make sure there are no errors in the agent list
         agent_list = self.fixup_goals(map_instance=map_instance, agent_list=agent_list)
-        #for agent in agent_list:
-        #    print(agent)
-        
+
         # Create an environment and solver
         env = Environment(dimension, agent_list, obstacles)
         cbs = CBS(env)
         # Solve the CBS instance
-        #print("solving..")
+
+        starts = [tuple(a["start"]) for a in agent_list]
+        goals = [tuple(a["goal"]) for a in agent_list]
+        logging.info(f"\nstarts: {starts},\ngoals: {goals},\nobstacles: {obstacles}")
+
+        if np.any([g in obstacles for g in goals]):
+            logging.error("Goal in obstacles")
+            breakpoint()
+
+        if len(np.unique(goals, axis=1)) != len(goals):
+            logging.error("Duplicate goals")
+            breakpoint()
+
+        logging.info("solving..")
         solution = cbs.search()
-        #print("solved!")
+        logging.info("solved!")
 
         # Set the paths for each agent
         for agent_id in solution.keys():

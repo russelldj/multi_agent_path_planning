@@ -7,9 +7,7 @@ from multi_agent_path_planning.lifelong_MAPF.datastuctures import AgentSet
 class BaseDynamicsSimulator:
     """ """
 
-    def step_world(
-        self, agents: AgentSet, timestep: int, verbose=False
-    ):
+    def step_world(self, agents: AgentSet, timestep: int, verbose=False):
         """
         Args:
             agents: the list of agents

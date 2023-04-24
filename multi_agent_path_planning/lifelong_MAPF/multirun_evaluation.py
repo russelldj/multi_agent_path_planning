@@ -23,7 +23,14 @@ from multi_agent_path_planning.lifelong_MAPF.lifelong_MAPF import (
     lifelong_MAPF_experiment,
 )
 from multi_agent_path_planning.lifelong_MAPF.mapf_solver import CBSSolver
-from multi_agent_path_planning.lifelong_MAPF.task_allocator import RandomTaskAllocator
+from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
+    RandomTaskAllocator,
+    LinearSumTaskAllocator,
+    RandomTaskAllocator_IdleKmeans,
+    RandomTaskAllocator_IdleCurrent,
+    LinearSumAllocator_IdleKmeans,
+    LinearSumAllocator_IdleCurrent,
+)
 from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
 JSON_PATH = Path(VIS_DIR, "results.json")
@@ -31,7 +38,7 @@ JSON_PATH = Path(VIS_DIR, "results.json")
 NAMES_TO_INDS = {
     "map_file": 0,
     "num_agents": 1,
-    "task_factory_cls": 2,
+    "task_factory_func": 2,
     "task_allocator_cls": 3,
     "mapf_solver_cls": 4,
 }
@@ -41,7 +48,7 @@ def make_key_tuple_from_config_dict(config_dict):
     key_tuple = (
         config_dict["map_file"].name,
         config_dict["num_agents"],
-        config_dict["task_factory_cls"].get_name(),
+        str(config_dict["task_factory_func"]),
         config_dict["task_allocator_cls"].get_name(),
         config_dict["mapf_solver_cls"].get_name(),
     )
@@ -100,6 +107,16 @@ def plot_one_data(data, compare_config, versus_config, vis_metric, plot_title):
             valid_values = [x[vis_metric] for x in valid_metrics]
             frac_valid = len(valid_metrics) / len(metrics_for_one_config)
             fracs_valid.append(frac_valid)
+            try:
+                valid_values = np.array(valid_values)
+            # Ragged array
+            except ValueError:
+                # Flatten first
+                flat_valid_values = list(
+                    itertools.chain(*[itertools.chain(*v) for v in valid_values])
+                )
+                valid_values = np.array(flat_valid_values)
+
             if len(valid_values) > 0:
                 means.append(np.mean(valid_values))
                 stds.append(np.std(valid_values))
@@ -116,6 +133,11 @@ def plot_one_data(data, compare_config, versus_config, vis_metric, plot_title):
         axs[0].set_ylabel(f"Metric: {vis_metric}")
         axs[1].set_ylabel(f"Fraction valid")
 
+        int_x_ticks = range(
+            int(np.floor(min(x_values))), int(np.ceil(max(x_values))) + 1
+        )
+        axs[0].set_xticks(int_x_ticks)
+        axs[1].set_xticks(int_x_ticks)
         axs[0].set_xlabel(versus_config)
         axs[1].set_xlabel(versus_config)
 
@@ -196,7 +218,7 @@ def create_n_random_agents_in_freespace(map_instance: Map, n_agents):
 def singlerun_experiment_runner(
     map_file,
     num_agents,
-    task_factory_cls=RandomTaskFactory,
+    task_factory_func=RandomTaskFactory,
     task_allocator_cls=RandomTaskAllocator,
     mapf_solver_cls=CBSSolver,
     max_timesteps=100,
@@ -215,8 +237,8 @@ def singlerun_experiment_runner(
     (is_done, is_timeout, error_message, results) = lifelong_MAPF_experiment_w_timeout(
         map_instance=map_instance,
         initial_agents=initial_agents,
-        task_factory=task_factory_cls(map_instance),
-        task_allocator=task_allocator_cls(),
+        task_factory=task_factory_func(map_instance),
+        task_allocator=task_allocator_cls(map_instance),
         mapf_solver=mapf_solver_cls(),
         max_timesteps=max_timesteps,
         verbose=verbose,
@@ -231,25 +253,38 @@ def singlerun_experiment_runner(
 
 
 def multirun_experiment_runner(
-    map_folder=Path(BENCHMARK_DIR, "8x8_obst12"),
+    map_folder=Path(BENCHMARK_DIR, "custom"),
     map_glob="*",
-    nums_agents=list(range(2,8)),
-    task_factory_classes=(RandomTaskFactory,),
-    task_allocator_classes=(RandomTaskAllocator,),
+    nums_agents=list([2, 3, 4, 6, 8, 10]),
+    task_factory_funcs=(
+        lambda map_instance: RandomTaskFactory(
+            map_instance, max_tasks_per_timestep=1, per_task_prob=0.1
+        ),
+    ),
+    task_allocator_classes=(
+        RandomTaskAllocator,
+        RandomTaskAllocator_IdleKmeans,
+        RandomTaskAllocator_IdleCurrent,
+        LinearSumTaskAllocator,
+        LinearSumAllocator_IdleKmeans,
+        LinearSumAllocator_IdleCurrent,
+    ),
     mapf_solver_classes=(CBSSolver,),
-    n_maps=4,
+    n_maps=None,
     max_timesteps=100,
-    timeout_seconds=20,
+    timeout_seconds=5,
     num_random_trials=3,
     verbose=True,
 ):
-    map_files = sorted(map_folder.glob(map_glob))[:n_maps]
+    map_files = sorted(Path(map_folder).glob(map_glob))
+    if n_maps is not None:
+        map_files = np.random.choice(map_files, size=n_maps, replace=False)
 
     config_tuples = list(
         itertools.product(
             map_files,
             nums_agents,
-            task_factory_classes,
+            task_factory_funcs,
             task_allocator_classes,
             mapf_solver_classes,
         )
@@ -265,7 +300,7 @@ def multirun_experiment_runner(
         {
             "map_file": t[0],
             "num_agents": t[1],
-            "task_factory_cls": t[2],
+            "task_factory_func": t[2],
             "task_allocator_cls": t[3],
             "mapf_solver_cls": t[4],
         }
@@ -291,10 +326,23 @@ def multirun_experiment_runner(
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vis-existing-json", action="store_true")
-    parser.add_argument("--vis-breakup-config", default="mapf_solver_cls")
+    parser.add_argument("--vis-breakup-config", default="map_file")
     parser.add_argument("--vis-versus-config", default="num_agents")
-    parser.add_argument("--vis-compare-config", default="map_file")
-    parser.add_argument("--vis-metric", default="runtime")
+    parser.add_argument("--vis-compare-config", default="task_allocator_cls")
+    parser.add_argument("--timeout-seconds", default=30, type=int)
+    parser.add_argument("--maps-folders", default=Path(BENCHMARK_DIR, "custom"))
+    parser.add_argument(
+        "--vis-metric",
+        default="timesteps_to_task_start",
+        choices=(
+            "timesteps_to_task_start",
+            "runtime",
+            "pathlength",
+            "idle_timesteps_before_task_assignment",
+            "idle_timesteps_before_task_pickup",
+            "total_timesteps_until_task_pickup",
+        ),
+    )
     args = parser.parse_args()
     return args
 
@@ -310,7 +358,7 @@ if __name__ == "__main__":
             vis_metric=args.vis_metric,
         )
     else:
-        multirun_experiment_runner()
+        multirun_experiment_runner(timeout_seconds=args.timeout_seconds)
         vis_from_json(
             JSON_PATH,
             breakup_config=args.vis_breakup_config,

@@ -58,17 +58,15 @@ class Location:
 
 
 class Task:
-    def __init__(self, start, goal, timestep):
-        self.start = Location(start)
-        self.goal = Location(goal)
-        self.timestep = timestep
-        self.task_id = -1
-
     def __init__(self, start, goal, timestep, task_id):
         self.start = Location(start)
         self.goal = Location(goal)
         self.timestep = timestep
         self.task_id = task_id
+        self.n_steps_idle = 0
+
+    def step_idle(self):
+        self.n_steps_idle += 1
 
     def get_dict(self):
         return {
@@ -98,6 +96,9 @@ class TaskSet:
             int: the number of tasks
         """
         return len(self.task_dict)
+
+    def step_idle(self):
+        [x.step_idle() for x in self.task_dict.values()]
 
     def task_list(self):
         return list(self.task_dict.values())
@@ -208,18 +209,31 @@ class Agent:
             task (Task, optional): _description_. Defaults to None.
         """
         self.loc = Location(loc)
+        self.verbose = verbose
         self.ID = ID
+
         self.goal = goal
         self.task = task
+
         self.planned_path = None
         self.executed_path = Path()
-        self.task_ids = []
-        self.n_completed_task = 0
-        self.idle_timesteps = 0
         self.executed_path.add_pathnode(PathNode(self.loc, 0))
-        self.log_task_id()
+
+        self.task_ids = []
+
+        self.n_completed_task = 0
+        self.timesteps_to_task_start = 0
+        self.idle_timesteps = 0
         self.timestep = 1
-        self.verbose = verbose
+
+        self.logged_timesteps_to_task_start = (
+            []
+        )  # how long it took to reach the task starts
+        self.idle_timesteps_before_task_assignment = (
+            []
+        )  # How long each task sat idle before being picked up
+
+        self.log_task_id()
 
     def __repr__(self) -> str:
         return f"ID: {self.ID}, loc: {self.loc}, TODO"
@@ -239,29 +253,56 @@ class Agent:
     def set_task(self, task: Task):
         self.task = task
         self.goal = self.task.start
+        self.idle_timesteps_before_task_assignment.append(task.n_steps_idle)
 
     def get_executed_path(self):
         return self.executed_path
 
     def get_metrics(self):
-        return {
+        metrics = {
             "pathlength": int(self.executed_path.get_len()),
             "n_completed_tasks": int(self.n_completed_task),
             "idle_timesteps": int(self.idle_timesteps),
+            "timesteps_to_task_start": self.logged_timesteps_to_task_start,
+            "idle_timesteps_before_task_assignment": self.idle_timesteps_before_task_assignment,
+            "total_timesteps_until_task_pickup": [
+                i + t
+                for i, t in zip(
+                    self.idle_timesteps_before_task_assignment,
+                    self.logged_timesteps_to_task_start,
+                )
+            ],
         }
+        return metrics
 
     def get_as_dict(self):
         # {'start': [0, 0], 'goal': [2, 0], 'name': 'agent0'}
         return {
             "start": list(self.loc.as_xy()),
-            "goal": list(self.goal.as_xy())
+            "goal": list(self.goal.as_xy()),
+            "task": self.task
             if self.goal is not None
             else None,  # There is no goal set
-            "name": str(self.ID)
+            "name": str(self.ID),
         }
 
     def is_allocated(self):
-        return self.goal is not None
+        return self.task is not None
+
+    def is_going_to_task_start(self):
+        return self.task is not None and self.goal == self.task.start
+
+    def is_going_to_task_goal(self):
+        return self.task is not None and self.goal == self.task.goal
+
+    def is_at_task_start(self):
+        return self.task is not None and self.loc == self.task.start
+
+    def is_at_task_goal(self):
+        return self.task is not None and self.loc == self.task.goal
+
+    def is_at_agent_goal(self):
+        return self.goal is not None and self.loc == self.goal
 
     def set_planned_path_from_plan(self, plan):
         if self.verbose:
@@ -309,18 +350,39 @@ class Agent:
             self.executed_path.add_pathnode(PathNode(self.loc, self.timestep))
             self.log_task_id()
             self.timestep += 1
+
+            # Currently assigned to a task start
+            if self.is_going_to_task_start():
+                self.timesteps_to_task_start += 1
+
             # if path is exausted (goal reached)
             if len(self.planned_path.pathnodes) == 0:
-                # if we have hit the "start" of a "task"
-                # TODO make sure this first check is right
-                if self.task is not None and self.loc == self.task.start:
+                # At the start of a task
+                if self.is_at_task_start():
                     self.goal = self.task.goal
                     self.planned_path = None
-                else:
+                    if self.timesteps_to_task_start is not None:
+                        self.logged_timesteps_to_task_start.append(
+                            self.timesteps_to_task_start
+                        )
+                    self.timesteps_to_task_start = 0
+                # Reached a task goal
+                elif self.is_at_task_goal():
                     self.goal = None
                     self.task = None
                     self.planned_path = None
                     self.n_completed_task += 1
+                # At an arbitrary (non-task) goal
+                elif self.is_at_agent_goal():
+                    self.goal = None
+                    self.planned_path = None
+                    # Do not reset the task as we may have been
+                    # redirected temporarily
+                else:
+                    # Agent must have been reassigned a nearby location in the
+                    # MAPF solver and therefore needs to be reassigned a path to get
+                    # to its goal
+                    self.planned_path = None
 
 
 class AgentSet:
@@ -340,7 +402,7 @@ class AgentSet:
             temp_id = agent.get_id()
             temp_list = []
 
-            for i,path_node in enumerate(agent.get_executed_path().get_path()):
+            for i, path_node in enumerate(agent.get_executed_path().get_path()):
                 temp = {}
                 temp["x"] = path_node.get_loc().x()
                 temp["y"] = path_node.get_loc().y()
@@ -417,7 +479,6 @@ class AgentSet:
             plt.legend()
             plt.show()
         return all_metrics
-
 
 
 class Map:

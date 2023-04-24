@@ -32,7 +32,7 @@ def parse_args():
         "--allocator",
         choices=TASK_ALLOCATOR_CLASS_DICT.keys(),
         help="which allocator to use",
-        default="random",
+        default="random_random",
     )
     parser.add_argument(
         "-log",
@@ -56,12 +56,18 @@ def main():
 
     world_map = Map(args.input)
 
-    allocator = TASK_ALLOCATOR_CLASS_DICT[args.allocator]()
+    allocator = TASK_ALLOCATOR_CLASS_DICT[args.allocator](world_map)
 
     output, metrics = lifelong_MAPF_experiment(
         map_instance=world_map,
         initial_agents=make_agent_set(args.input),
-        task_factory=RandomTaskFactory(world_map, max_timestep=50, max_tasks=4, per_task_prob=0.3),
+        task_factory=RandomTaskFactory(
+            world_map,
+            start_timestep=10,
+            end_timestep=50,
+            max_tasks=10,
+            per_task_prob=0.2,
+        ),
         task_allocator=allocator,
         mapf_solver=CBSSolver(),
         # mapf_solver=SippSolver(),
@@ -141,6 +147,13 @@ def lifelong_MAPF_experiment(
             open_task_list.append(task_dict)
         output["open_tasks"] = open_task_list
 
+        # print("AGENTS")
+        # for agent in agents.get_agent_dict():
+        #    print(agent)
+        # print("OBSTACLES")
+        # for obs in map_instance.obstacles:
+        #    print(obs)
+
         # Plan all the required paths
         agents = mapf_solver.solve_MAPF_instance(
             map_instance=map_instance, agents=agents, timestep=timestep,
@@ -149,6 +162,7 @@ def lifelong_MAPF_experiment(
         agents = dynamics_simulator.step_world(
             agents=agents, timestep=timestep, verbose=verbose
         )
+        open_tasks.step_idle()
 
     # Save tasks one more time to match timestep of agents
     for agent in agents.agents:

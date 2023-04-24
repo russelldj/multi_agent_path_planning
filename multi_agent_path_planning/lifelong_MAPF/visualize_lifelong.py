@@ -262,6 +262,7 @@ class Animation:
             self.agents[agent_name].center = p
             self.agent_names[agent_name].set_position(p)
             agent_id = agent_name.replace("agent", "")
+            idx = min(len(agent)-1, idx)
             if agent[idx]["task_id"] is None:
                 self.agent_names[agent_name].set_text(f'A{agent_id}')
             else:
