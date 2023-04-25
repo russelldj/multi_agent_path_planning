@@ -498,6 +498,12 @@ class Map:
             plt.imshow(self.map_np)
             plt.show()
 
+    def get_l2_size(self):
+        return np.linalg.norm(self.map_np.shape)
+
+    def get_manhattan_size(self):
+        return np.sum(self.map_np.shape)
+
     def get_map_dict(self):
         return self.map_dict
 

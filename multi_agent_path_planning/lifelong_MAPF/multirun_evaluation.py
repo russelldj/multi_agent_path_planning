@@ -15,9 +15,7 @@ from tqdm import tqdm
 
 from multi_agent_path_planning.config import BENCHMARK_DIR, MEAN_KEY, STD_KEY, VIS_DIR
 from multi_agent_path_planning.lifelong_MAPF.datastuctures import Agent, Map, TaskSet
-from multi_agent_path_planning.lifelong_MAPF.dynamics_simulator import (
-    BaseDynamicsSimulator,
-)
+
 from multi_agent_path_planning.lifelong_MAPF.helpers import *
 from multi_agent_path_planning.lifelong_MAPF.lifelong_MAPF import (
     lifelong_MAPF_experiment,
@@ -33,7 +31,6 @@ from multi_agent_path_planning.lifelong_MAPF.task_allocator import (
 )
 from multi_agent_path_planning.lifelong_MAPF.task_factory import RandomTaskFactory
 
-JSON_PATH = Path(VIS_DIR, "results.json")
 
 NAMES_TO_INDS = {
     "map_file": 0,
@@ -237,7 +234,7 @@ def singlerun_experiment_runner(
     (is_done, is_timeout, error_message, results) = lifelong_MAPF_experiment_w_timeout(
         map_instance=map_instance,
         initial_agents=initial_agents,
-        task_factory=task_factory_func(map_instance),
+        task_factory=task_factory_func(map_instance, num_agents),
         task_allocator=task_allocator_cls(map_instance),
         mapf_solver=mapf_solver_cls(),
         max_timesteps=max_timesteps,
@@ -256,11 +253,7 @@ def multirun_experiment_runner(
     map_folder=Path(BENCHMARK_DIR, "custom"),
     map_glob="*",
     nums_agents=list([2, 3, 4, 6, 8, 10]),
-    task_factory_funcs=(
-        lambda map_instance: RandomTaskFactory(
-            map_instance, max_tasks_per_timestep=1, per_task_prob=0.1
-        ),
-    ),
+    task_freq_scaler=0.5,
     task_allocator_classes=(
         RandomTaskAllocator,
         RandomTaskAllocator_IdleKmeans,
@@ -274,8 +267,23 @@ def multirun_experiment_runner(
     max_timesteps=100,
     timeout_seconds=5,
     num_random_trials=3,
+    save_folder=VIS_DIR,
     verbose=True,
 ):
+    savepath = Path(
+        save_folder,
+        f"results_task_freq_scaler:{task_freq_scaler}_timeout:{timeout_seconds}.json",
+    )
+
+    task_factory_funcs = (
+        lambda map_instance, num_agents: RandomTaskFactory(
+            map_instance,
+            max_tasks_per_timestep=1,
+            per_task_prob=task_freq_scaler
+            * num_agents
+            / map_instance.get_manhattan_size(),
+        ),
+    )
     map_files = sorted(Path(map_folder).glob(map_glob))
     if n_maps is not None:
         map_files = np.random.choice(map_files, size=n_maps, replace=False)
@@ -320,16 +328,23 @@ def multirun_experiment_runner(
             **config_dict,
         )
         results_dict[experiment_key].append(experiment_result)
-        save_to_json(results_dict=results_dict, savepath=JSON_PATH)
+        save_to_json(results_dict=results_dict, savepath=savepath)
+    return savepath
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vis-existing-json", action="store_true")
+    parser.add_argument("--vis-existing-json", help="Path to existing json")
     parser.add_argument("--vis-breakup-config", default="map_file")
     parser.add_argument("--vis-versus-config", default="num_agents")
     parser.add_argument("--vis-compare-config", default="task_allocator_cls")
     parser.add_argument("--timeout-seconds", default=30, type=int)
+    parser.add_argument(
+        "--task-freq-scaler",
+        default=0.5,
+        type=float,
+        help="Multiplier on number of agents / map size",
+    )
     parser.add_argument("--maps-folders", default=Path(BENCHMARK_DIR, "custom"))
     parser.add_argument(
         "--vis-metric",
@@ -349,18 +364,21 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    if args.vis_existing_json:
+    if args.vis_existing_json is not None:
         vis_from_json(
-            JSON_PATH,
+            savepath=args.vis_existing_json,
             breakup_config=args.vis_breakup_config,
             compare_config=args.vis_compare_config,
             versus_config=args.vis_versus_config,
             vis_metric=args.vis_metric,
         )
     else:
-        multirun_experiment_runner(timeout_seconds=args.timeout_seconds)
+        savepath = multirun_experiment_runner(
+            timeout_seconds=args.timeout_seconds, task_freq_scaler=args.task_freq_scaler
+        )
+        print(f"visualizing {savepath}")
         vis_from_json(
-            JSON_PATH,
+            savepath=savepath,
             breakup_config=args.vis_breakup_config,
             compare_config=args.vis_compare_config,
             versus_config=args.vis_versus_config,
